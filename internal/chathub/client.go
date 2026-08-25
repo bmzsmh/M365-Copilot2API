@@ -349,6 +349,14 @@ func (c *Client) ChatWithReasoning(ctx context.Context, acc Account, req Request
 	})
 }
 
+// A pre-warmed websocket is created with its own conversation/session IDs.
+// It is safe for a fresh first turn, whose IDs are also generated locally, but
+// not for continuing an existing upstream conversation. Microsoft can finish
+// such mismatched continuation requests immediately with no answer text.
+func shouldReusePooledConnection(req Request) bool {
+	return req.ConversationID == "" && req.SessionID == ""
+}
+
 func (c *Client) chatWithHandlers(ctx context.Context, acc Account, req Request, onDelta func(string) error, onEvent StreamHandler) (Result, error) {
 	startedAt := time.Now()
 	log.Printf("chathub timing start prompt_len=%d", len(req.Text))
@@ -387,7 +395,7 @@ func (c *Client) chatWithHandlers(ctx context.Context, acc Account, req Request,
 	var reused bool
 	phase = PhaseDial
 
-	if c.Pool != nil {
+	if c.Pool != nil && shouldReusePooledConnection(req) {
 		var poolErr error
 		conn, reused, poolErr = c.Pool.Take(ctx, acc.OID, acc.TID, wsURL)
 		if poolErr != nil {
