@@ -302,20 +302,20 @@ body{background:var(--bg);color:var(--text);font-family:"Inter","SF Pro Display"
     <div class="logo"><div class="logo-mark"><span></span><span></span><span></span><span></span></div><span>M365 Copilot2API</span></div>
     <div class="nav-label">Overview</div>
     <nav class="nav">
-      <button class="active" data-page="dashboard" onclick="showPage('dashboard')"><i data-lucide="layout-dashboard" style="width:16px;height:16px;flex-shrink:0"></i><span>Dashboard</span></button>
-      <button data-page="usage" onclick="showPage('usage')"><i data-lucide="chart-line" style="width:16px;height:16px;flex-shrink:0"></i><span>Usage</span></button>
+      <button data-page="dashboard" onclick="showPage('dashboard')" class="active"><i data-lucide="layout-dashboard" style="width:16px;height:16px;flex-shrink:0"></i><span>控制台</span></button>
+      <button data-page="usage" onclick="showPage('usage')"><i data-lucide="chart-line" style="width:16px;height:16px;flex-shrink:0"></i><span>用量</span></button>
     </nav>
     <div class="nav-label">Management</div>
     <nav class="nav">
-      <button data-page="accounts" onclick="showPage('accounts')"><i data-lucide="users" style="width:16px;height:16px;flex-shrink:0"></i><span>Accounts</span></button>
-      <button data-page="apikeys" onclick="showPage('apikeys')"><i data-lucide="key-round" style="width:16px;height:16px;flex-shrink:0"></i><span>API Keys</span></button>
-      <button data-page="conversations" onclick="showPage('conversations')"><i data-lucide="message-square" style="width:16px;height:16px;flex-shrink:0"></i><span>Conversations</span></button>
+      <button data-page="accounts" onclick="showPage('accounts')"><i data-lucide="users" style="width:16px;height:16px;flex-shrink:0"></i><span>账号</span></button>
+      <button data-page="apikeys" onclick="showPage('apikeys')"><i data-lucide="key-round" style="width:16px;height:16px;flex-shrink:0"></i><span>API 密钥</span></button>
+      <button data-page="conversations" onclick="showPage('conversations')"><i data-lucide="message-square" style="width:16px;height:16px;flex-shrink:0"></i><span>对话管理</span></button>
     </nav>
     <div class="nav-label">System</div>
     <nav class="nav">
-      <button data-page="proxies" onclick="showPage('proxies')"><i data-lucide="globe" style="width:16px;height:16px;flex-shrink:0"></i><span>Proxy Pool</span></button>
-      <button data-page="modeltest" onclick="showPage('modeltest')"><i data-lucide="flask-conical" style="width:16px;height:16px;flex-shrink:0"></i><span>Model Test</span></button>
-      <button data-page="settings" onclick="showPage('settings')"><i data-lucide="settings" style="width:16px;height:16px;flex-shrink:0"></i><span>Settings</span></button>
+      <button data-page="proxies" onclick="showPage('proxies')"><i data-lucide="globe" style="width:16px;height:16px;flex-shrink:0"></i><span>代理池</span></button>
+      <button data-page="modeltest" onclick="showPage('modeltest')"><i data-lucide="flask-conical" style="width:16px;height:16px;flex-shrink:0"></i><span>模型测试</span></button>
+      <button data-page="settings" onclick="showPage('settings')"><i data-lucide="settings" style="width:16px;height:16px;flex-shrink:0"></i><span>设置</span></button>
     </nav>
     <div class="sidebar-foot">v0.4.0</div>
   </aside>
@@ -416,7 +416,7 @@ if (response.output_text) {
           <div class="stat"><span class="stat-label">Tokens saved</span><span class="stat-value" id="stat-saved">0</span><span class="stat-unit" style="font-size:12px">saved</span></div>
         </div>
         <div class="card">
-          <div class="card-head"><span class="card-title">Quick actions</span></div>
+          <div class="card-head"><span class="card-title">快捷操作</span></div>
           <div class="card-body">
             <div class="quick-grid">
               <div class="quick-action" onclick="showPage('accounts');setTimeout(startPKCE,200)">
@@ -435,7 +435,7 @@ if (response.output_text) {
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><span class="card-title">Recent requests</span><button class="btn btn-sm" onclick="showPage('usage')">View all</button></div>
+          <div class="card-head"><span class="card-title">最近请求</span><button class="btn btn-sm" onclick="showPage('usage')">查看全部</button></div>
           <table class="table"><thead><tr><th>Time</th><th>Model</th><th>Endpoint</th><th>Tokens</th><th>Status</th></tr></thead><tbody id="dashRecentRows"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody></table>
         </div>
       </section>
@@ -681,7 +681,7 @@ if (response.output_text) {
 
 <script>
 const $=id=>document.getElementById(id);
-const pages={dashboard:'Dashboard',usage:'Usage',accounts:'Accounts',apikeys:'API Keys',conversations:'Conversations',proxies:'Proxy Pool',modeltest:'Model Test',settings:'Settings'};
+const pages={dashboard:'控制台',usage:'用量',accounts:'账号',apikeys:'API 密钥',conversations:'对话管理',proxies:'代理池',modeltest:'模型测试',settings:'设置'};
 const localeStorageKey='m365_locale';
 const localeSelectionKey='m365_locale_selected';
 const SUPPORTED_LOCALES=['en','zh-CN','zh-TW','ja','ko','es','fr','de','pt-BR','ru','ar'];
@@ -695,7 +695,7 @@ const localeText={
   'Usage': {'zh-CN':'用量','zh-TW':'用量','ja':'使用量','ko':'사용량','es':'Uso','fr':'Utilisation','de':'Nutzung','pt-BR':'Uso','ru':'Использование','ar':'الاستخدام'},
   'Management': {'zh-CN':'管理','zh-TW':'管理','ja':'管理','ko':'관리','es':'Gestión','fr':'Gestion','de':'Verwaltung','pt-BR':'Gerenciamento','ru':'Управление','ar':'الإدارة'},
   'Accounts': {'zh-CN':'账号','zh-TW':'帳號','ja':'アカウント','ko':'계정','es':'Cuentas','fr':'Comptes','de':'Konten','pt-BR':'Contas','ru':'Аккаунты','ar':'الحسابات'},
-  'API Keys': {'zh-CN':'API Keys','zh-TW':'API Keys','ja':'API キー','ko':'API 키','es':'Claves API','fr':'Clés API','de':'API-Schlüssel','pt-BR':'Chaves API','ru':'API-ключи','ar':'مفاتيح API'},
+  'API Keys': {'zh-CN':'API 密钥','zh-TW':'API 金鑰','ja':'API キー','ko':'API 키','es':'Claves API','fr':'Clés API','de':'API-Schlüssel','pt-BR':'Chaves API','ru':'API-ключи','ar':'مفاتيح API'},
   'Conversations': {'zh-CN':'对话管理','zh-TW':'對話管理','ja':'会話管理','ko':'대화 관리','es':'Conversaciones','fr':'Conversations','de':'Unterhaltungen','pt-BR':'Conversas','ru':'Разговоры','ar':'المحادثات'},
   'System': {'zh-CN':'系统','zh-TW':'系統','ja':'システム','ko':'시스템','es':'Sistema','fr':'Système','de':'System','pt-BR':'Sistema','ru':'Система','ar':'النظام'},
   'Proxy Pool': {'zh-CN':'代理池','zh-TW':'代理池','ja':'プロキシプール','ko':'프록시 풀','es':'Grupo de proxies','fr':'Pool de proxys','de':'Proxy-Pool','pt-BR':'Pool de proxies','ru':'Пул прокси','ar':'مجموعة البروكسي'},
@@ -719,7 +719,7 @@ const localeText={
   'Gateway': {'zh-CN':'网关','zh-TW':'閘道','ja':'ゲートウェイ','ko':'게이트웨이','es':'Puerta de enlace','fr':'Passerelle','de':'Gateway','pt-BR':'Gateway','ru':'Шлюз','ar':'البوابة'},
   'Online': {'zh-CN':'在线','zh-TW':'線上','ja':'オンライン','ko':'온라인','es':'En línea','fr':'En ligne','de':'Online','pt-BR':'Online','ru':'В сети','ar':'متصل'},
   'Available accounts': {'zh-CN':'可用账号','zh-TW':'可用帳號','ja':'利用可能なアカウント','ko':'사용 가능한 계정','es':'Cuentas disponibles','fr':'Comptes disponibles','de':'Verfügbare Konten','pt-BR':'Contas disponíveis','ru':'Доступные аккаунты','ar':'الحسابات المتاحة'},
-  'API Key': {'zh-CN':'API Key','zh-TW':'API Key','ja':'API キー','ko':'API 키','es':'Clave API','fr':'Clé API','de':'API-Schlüssel','pt-BR':'Chave API','ru':'API-ключ','ar':'مفتاح API'},
+  'API Key': {'zh-CN':'API 密钥','zh-TW':'API 金鑰','ja':'API キー','ko':'API 키','es':'Clave API','fr':'Clé API','de':'API-Schlüssel','pt-BR':'Chave API','ru':'API-ключ','ar':'مفتاح API'},
   'Last 24 hours': {'zh-CN':'近 24 小时消耗','zh-TW':'近 24 小時消耗','ja':'過去24時間の消費','ko':'최근 24시간 사용','es':'Últimas 24 horas','fr':'Dernières 24 heures','de':'Letzte 24 Stunden','pt-BR':'Últimas 24 horas','ru':'Последние 24 часа','ar':'آخر 24 ساعة'},
   'All-time usage': {'zh-CN':'历史使用情况','zh-TW':'歷史使用情況','ja':'全期間の使用量','ko':'전체 사용량','es':'Uso histórico','fr':'Utilisation totale','de':'Gesamtnutzung','pt-BR':'Uso histórico','ru':'Использование за всё время','ar':'الاستخدام الكلي'},
   'Request count': {'zh-CN':'请求计数','zh-TW':'要求計數','ja':'リクエスト数','ko':'요청 수','es':'Número de solicitudes','fr':'Nombre de requêtes','de':'Anzahl der Anfragen','pt-BR':'Número de solicitações','ru':'Количество запросов','ar':'عدد الطلبات'},
@@ -760,7 +760,7 @@ const localeText={
   'Token usage by model': {'zh-CN':'按模型统计的 Token 用量','zh-TW':'按模型統計的 Token 用量','ja':'モデル別トークン使用量','ko':'모델별 토큰 사용량','es':'Uso de tokens por modelo','fr':'Utilisation de tokens par modèle','de':'Token-Nutzung nach Modell','pt-BR':'Uso de tokens por modelo','ru':'Использование токенов по моделям','ar':'استخدام الرموز حسب النموذج'},
   'Endpoint distribution': {'zh-CN':'端点分布','zh-TW':'端點分佈','ja':'エンドポイント分布','ko':'엔드포인트 분포','es':'Distribución de puntos finales','fr':'Répartition des points d\'entrée','de':'Endpunktverteilung','pt-BR':'Distribuição de endpoints','ru':'Распределение конечных точек','ar':'توزيع نقاط النهاية'},
   'Requests by endpoint': {'zh-CN':'按接口统计的请求量','zh-TW':'按介面統計的要求量','ja':'エンドポイント別リクエスト数','ko':'엔드포인트별 요청 수','es':'Solicitudes por punto final','fr':'Requêtes par point d\'entrée','de':'Anfragen nach Endpunkt','pt-BR':'Solicitações por endpoint','ru':'Запросы по конечным точкам','ar':'الطلبات حسب نقطة النهاية'},
-  'API key usage': {'zh-CN':'API Key 用量','zh-TW':'API Key 用量','ja':'API キー使用量','ko':'API 키 사용량','es':'Uso de claves API','fr':'Utilisation des clés API','de':'API-Schlüssel-Nutzung','pt-BR':'Uso de chaves API','ru':'Использование API-ключей','ar':'استخدام مفاتيح API'},
+  'API key usage': {'zh-CN':'API 密钥用量','zh-TW':'API 金鑰用量','ja':'API キー使用量','ko':'API 키 사용량','es':'Uso de claves API','fr':'Utilisation des clés API','de':'API-Schlüssel-Nutzung','pt-BR':'Uso de chaves API','ru':'Использование API-ключей','ar':'استخدام مفاتيح API'},
   'Requests by API key': {'zh-CN':'按密钥统计的请求量','zh-TW':'按金鑰統計的要求量','ja':'API キー別リクエスト数','ko':'API 키별 요청 수','es':'Solicitudes por clave API','fr':'Requêtes par clé API','de':'Anfragen nach API-Schlüssel','pt-BR':'Solicitações por chave API','ru':'Запросы по API-ключам','ar':'الطلبات حسب مفتاح API'},
   'Request details': {'zh-CN':'请求明细','zh-TW':'要求明細','ja':'リクエスト詳細','ko':'요청 상세','es':'Detalles de solicitud','fr':'Détails de la requête','de':'Anfragedetails','pt-BR':'Detalhes da solicitação','ru':'Детали запроса','ar':'تفاصيل الطلب'},
   'Recent records': {'zh-CN':'最近记录','zh-TW':'最近記錄','ja':'最近の記録','ko':'최근 기록','es':'Registros recientes','fr':'Enregistrements récents','de':'Letzte Einträge','pt-BR':'Registros recentes','ru':'Последние записи','ar':'السجلات الأخيرة'},
@@ -830,12 +830,12 @@ const localeText={
   'Language': {'zh-CN':'语言','zh-TW':'語言','ja':'言語','ko':'언어','es':'Idioma','fr':'Langue','de':'Sprache','pt-BR':'Idioma','ru':'Язык','ar':'اللغة'},
   'Save settings': {'zh-CN':'保存设置','zh-TW':'儲存設定','ja':'設定を保存','ko':'설정 저장','es':'Guardar ajustes','fr':'Enregistrer les paramètres','de':'Einstellungen speichern','pt-BR':'Salvar configurações','ru':'Сохранить настройки','ar':'حفظ الإعدادات'},
   'Choose the language used by the administration console.': {'zh-CN':'选择管理控制台使用的语言。','zh-TW':'選擇管理主控台使用的語言。','ja':'管理コンソールで使用する言語を選択してください。','ko':'관리 콘솔에서 사용할 언어를 선택하세요.','es':'Elija el idioma que usará la consola de administración.','fr':'Choisissez la langue utilisée par la console d\'administration.','de':'Wählen Sie die Sprache, die von der Administrationskonsole verwendet wird.','pt-BR':'Escolha o idioma usado pelo console de administração.','ru':'Выберите язык, используемый консолью администратора.','ar':'اختر اللغة المستخدمة في وحدة تحكم الإدارة.'},
-  'Create API key': {'zh-CN':'创建 API Key','zh-TW':'建立 API Key','ja':'API キーを作成','ko':'API 키 생성','es':'Crear clave API','fr':'Créer une clé API','de':'API-Schlüssel erstellen','pt-BR':'Criar chave API','ru':'Создать API-ключ','ar':'إنشاء مفتاح API'},
+  'Create API key': {'zh-CN':'创建 API 密钥','zh-TW':'建立 API 金鑰','ja':'API キーを作成','ko':'API 키 생성','es':'Crear clave API','fr':'Créer une clé API','de':'API-Schlüssel erstellen','pt-BR':'Criar chave API','ru':'Создать API-ключ','ar':'إنشاء مفتاح API'},
   'The key is shown only once. Store it securely.': {'zh-CN':'密钥只显示一次，请妥善保存','zh-TW':'金鑰只顯示一次，請妥善保存','ja':'キーは一度だけ表示されます。安全に保管してください。','ko':'키는 한 번만 표시됩니다. 안전하게 보관하세요.','es':'La clave solo se muestra una vez. Guárdela de forma segura.','fr':'La clé n\'est affichée qu\'une fois. Conservez-la en lieu sûr.','de':'Der Schlüssel wird nur einmal angezeigt. Bewahren Sie ihn sicher auf.','pt-BR':'A chave só é mostrada uma vez. Guarde-a com segurança.','ru':'Ключ отображается только один раз. Храните его безопасно.','ar':'يظهر المفتاح مرة واحدة فقط. احفظه بأمان.'},
   'Cancel': {'zh-CN':'取消','zh-TW':'取消','ja':'キャンセル','ko':'취소','es':'Cancelar','fr':'Annuler','de':'Abbrechen','pt-BR':'Cancelar','ru':'Отмена','ar':'إلغاء'},
   'Create': {'zh-CN':'创建','zh-TW':'建立','ja':'作成','ko':'생성','es':'Crear','fr':'Créer','de':'Erstellen','pt-BR':'Criar','ru':'Создать','ar':'إنشاء'},
   'Copy and save this key now': {'zh-CN':'请立即复制保存此密钥','zh-TW':'請立即複製儲存此金鑰','ja':'今すぐこのキーをコピーして保存','ko':'지금 이 키를 복사하여 저장하세요','es':'Copie y guarde esta clave ahora','fr':'Copiez et enregistrez cette clé maintenant','de':'Kopieren und speichern Sie diesen Schlüssel jetzt','pt-BR':'Copie e salve esta chave agora','ru':'Скопируйте и сохраните этот ключ сейчас','ar':'انسخ واحفظ هذا المفتاح الآن'},
-  'Edit API key': {'zh-CN':'编辑 API Key','zh-TW':'編輯 API Key','ja':'API キーを編集','ko':'API 키 편집','es':'Editar clave API','fr':'Modifier la clé API','de':'API-Schlüssel bearbeiten','pt-BR':'Editar chave API','ru':'Редактировать API-ключ','ar':'تحرير مفتاح API'},
+  'Edit API key': {'zh-CN':'编辑 API 密钥','zh-TW':'編輯 API 金鑰','ja':'API キーを編集','ko':'API 키 편집','es':'Editar clave API','fr':'Modifier la clé API','de':'API-Schlüssel bearbeiten','pt-BR':'Editar chave API','ru':'Редактировать API-ключ','ar':'تحرير مفتاح API'},
   'Change the key name': {'zh-CN':'修改密钥名称','zh-TW':'修改金鑰名稱','ja':'キー名を変更','ko':'키 이름 변경','es':'Cambiar el nombre de la clave','fr':'Modifier le nom de la clé','de':'Schlüsselnamen ändern','pt-BR':'Alterar o nome da chave','ru':'Изменить имя ключа','ar':'تغيير اسم المفتاح'},
   'Save': {'zh-CN':'保存','zh-TW':'儲存','ja':'保存','ko':'저장','es':'Guardar','fr':'Enregistrer','de':'Speichern','pt-BR':'Salvar','ru':'Сохранить','ar':'حفظ'},
   'Use API key': {'zh-CN':'使用 API 密钥','zh-TW':'使用 API 金鑰','ja':'API キーを使用','ko':'API 키 사용','es':'Usar clave API','fr':'Utiliser la clé API','de':'API-Schlüssel verwenden','pt-BR':'Usar chave API','ru':'Использовать API-ключ','ar':'استخدام مفتاح API'},
@@ -844,7 +844,7 @@ const localeText={
   'Error': {'zh-CN':'错误','zh-TW':'錯誤','ja':'エラー','ko':'오류','es':'Error','fr':'Erreur','de':'Fehler','pt-BR':'Erro','ru':'Ошибка','ar':'خطأ'},
   'No matching accounts': {'zh-CN':'暂无匹配账号','zh-TW':'暫無符合帳號','ja':'一致するアカウントはありません','ko':'일치하는 계정 없음','es':'No hay cuentas coincidentes','fr':'Aucun compte correspondant','de':'Keine passenden Konten','pt-BR':'Nenhuma conta correspondente','ru':'Нет подходящих аккаунтов','ar':'لا توجد حسابات مطابقة'},
   'Delete': {'zh-CN':'删除','zh-TW':'刪除','ja':'削除','ko':'삭제','es':'Eliminar','fr':'Supprimer','de':'Löschen','pt-BR':'Excluir','ru':'Удалить','ar':'حذف'},
-  'No API keys': {'zh-CN':'暂无 API Key','zh-TW':'暫無 API Key','ja':'API キーはありません','ko':'API 키 없음','es':'No hay claves API','fr':'Aucune clé API','de':'Keine API-Schlüssel','pt-BR':'Nenhuma chave API','ru':'Нет API-ключей','ar':'لا توجد مفاتيح API'},
+  'No API keys': {'zh-CN':'暂无 API 密钥','zh-TW':'暫無 API 金鑰','ja':'API キーはありません','ko':'API 키 없음','es':'No hay claves API','fr':'Aucune clé API','de':'Keine API-Schlüssel','pt-BR':'Nenhuma chave API','ru':'Нет API-ключей','ar':'لا توجد مفاتيح API'},
   'Active': {'zh-CN':'有效','zh-TW':'有效','ja':'有効','ko':'활성','es':'Activo','fr':'Actif','de':'Aktiv','pt-BR':'Ativo','ru':'Активен','ar':'نشط'},
   'Disabled': {'zh-CN':'已禁用','zh-TW':'已停用','ja':'無効','ko':'비활성','es':'Deshabilitado','fr':'Désactivé','de':'Deaktiviert','pt-BR':'Desativado','ru':'Отключен','ar':'معطل'},
   'Enable': {'zh-CN':'启用','zh-TW':'啟用','ja':'有効にする','ko':'활성화','es':'Habilitar','fr':'Activer','de':'Aktivieren','pt-BR':'Ativar','ru':'Включить','ar':'تفعيل'},
