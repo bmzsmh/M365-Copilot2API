@@ -776,6 +776,8 @@ const localeText={
   'Previous': {'zh-CN':'上一页','zh-TW':'上一頁','ja':'前へ','ko':'이전','es':'Anterior','fr':'Précédent','de':'Zurück','pt-BR':'Anterior','ru':'Назад','ar':'السابق'},
   'Next': {'zh-CN':'下一页','zh-TW':'下一頁','ja':'次へ','ko':'다음','es':'Siguiente','fr':'Suivant','de':'Weiter','pt-BR':'Próximo','ru':'Далее','ar':'التالي'},
   'Account management': {'zh-CN':'账号管理','zh-TW':'帳號管理','ja':'アカウント管理','ko':'계정 관리','es':'Gestión de cuentas','fr':'Gestion des comptes','de':'Kontoverwaltung','pt-BR':'Gerenciamento de contas','ru':'Управление аккаунтами','ar':'إدارة الحسابات'},
+  'admin_login_locked': {'zh-CN':'登录失败次数过多，请稍后重试。','zh-TW':'登入失敗次數過多，請稍後重試。','ja':'ログイン失敗回数が多すぎます。しばらくしてから再度お試しください。','ko':'로그인 실패 횟수가 너무 많습니다. 잠시 후 다시 시도해 주세요.','es':'Demasiados intentos fallidos de inicio de sesión. Inténtelo de nuevo más tarde.','fr':'Trop de tentatives de connexion échouées. Veuillez réessayer plus tard.','de':'Zu viele fehlgeschlagene Anmeldeversuche. Bitte versuchen Sie es später erneut.','pt-BR':'Muitas tentativas de login falhas. Tente novamente mais tarde.','ru':'Слишком много неудачных попыток входа. Повторите попытку позже.','ar':'عدد كبير من محاولات تسجيل الدخول الفاشلة. حاول مرة أخرى لاحقاً.'},
+  'invalid_administrator_password': {'zh-CN':'管理员密码错误','zh-TW':'管理員密碼錯誤','ja':'管理者パスワードが正しくありません','ko':'관리자 비밀번호가 잘못되었습니다','es':'Contraseña de administrador no válida','fr':'Mot de passe administrateur invalide','de':'Ungültiges Administrator-Passwort','pt-BR':'Senha de administrador inválida','ru':'Неверный пароль администратора','ar':'كلمة مرور المسؤول غير صحيحة'},
   'Account': {'zh-CN':'账号','zh-TW':'帳號','ja':'アカウント','ko':'계정','es':'Cuenta','fr':'Compte','de':'Konto','pt-BR':'Conta','ru':'Учётная запись','ar':'الحساب'},
   'Proxy': {'zh-CN':'代理','zh-TW':'代理','ja':'プロキシ','ko':'프록시','es':'Proxy','fr':'Proxy','de':'Proxy','pt-BR':'Proxy','ru':'Прокси','ar':'الوكيل'},
   'Authorize and manage Microsoft accounts': {'zh-CN':'授权和管理 Microsoft 账号','zh-TW':'授權和管理 Microsoft 帳號','ja':'Microsoft アカウントの承認と管理','ko':'Microsoft 계정 인증 및 관리','es':'Autorizar y gestionar cuentas Microsoft','fr':'Autoriser et gérer les comptes Microsoft','de':'Microsoft-Konten autorisieren und verwalten','pt-BR':'Autorizar e gerenciar contas Microsoft','ru':'Авторизация и управление аккаунтами Microsoft','ar':'أذِن وإدارة حسابات Microsoft'},
@@ -1017,7 +1019,14 @@ async function api(path,opts={}){
   const r=await fetch(path,opts);
   const t=await r.text();
   let d;try{d=t?JSON.parse(t):{}}catch{d={error:{message:t}}};
-  if(!r.ok)throw Error(d?.error?.message||t||'Request failed');
+  if(!r.ok){
+    const rawMsg=d?.error?.message||t||'Request failed';
+    const translated=translateText(rawMsg);
+    const e=new Error(translated||rawMsg);
+    e.status=r.status;
+    e.rawMessage=rawMsg;
+    throw e;
+  }
   return d;
 }
 

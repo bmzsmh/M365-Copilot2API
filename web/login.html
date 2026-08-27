@@ -94,6 +94,7 @@ function togglePassword(btn){const ico=btn.querySelector('[data-lucide]');const 
 function setLoading(btn,loading){if(loading){btn.disabled=true;btn.classList.add('loading')}else{btn.disabled=false;btn.classList.remove('loading')}}
 const PASSWORD_ERRORS = {
   'current_password_invalid': { 'zh-CN': '当前密码错误', 'en': 'Current password is invalid' },
+  'invalid_administrator_password': { 'zh-CN': '管理员密码错误', 'en': 'Invalid administrator password' },
   'password_too_short': { 'zh-CN': '新密码至少需要 12 个字符（包含大小写字母、数字、特殊字符中至少 3 类）', 'en': 'New password must be at least 12 characters' },
   'password_is_default': { 'zh-CN': '新密码不能是默认密码', 'en': 'New password must not be the default password' },
   'password_too_long': { 'zh-CN': '密码太长（bcrypt 限制最大 72 字符）', 'en': 'Password is too long (max 72 characters)' },
@@ -107,7 +108,7 @@ function getLocale(){return document.documentElement.lang || 'zh-CN';}
 function getPasswordError(msg){const locale=getLocale();const entry=PASSWORD_ERRORS[msg];return entry?entry[locale]||msg:msg;}
 async function request(url,body){const r=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const raw=await r.text();let d={};try{d=JSON.parse(raw)}catch{}if(!r.ok){const e=new Error(d?.error?.message||raw||'Request failed');e.status=r.status;throw e}return d}
 function requireChange(current=''){$('login').hidden=true;$('change').hidden=false;if(current){$('current').value=current;}$('next').focus()}
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginError').textContent='';const password=$('password').value;if(!password)return;setLoading($('loginBtn'),true);try{const d=await request('/api/admin/login',{password});if(d.must_change_password)requireChange(password);else location.replace('/')}catch(x){$('loginError').textContent=x.status===429?'登录失败次数过多，请稍后重试。':x.message}finally{setLoading($('loginBtn'),false)}});
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginError').textContent='';const password=$('password').value;if(!password)return;setLoading($('loginBtn'),true);try{const d=await request('/api/admin/login',{password});if(d.must_change_password)requireChange(password);else location.replace('/')}catch(x){$('loginError').textContent=x.status===429?'登录失败次数过多，请稍后重试。':getPasswordError(x.message)}finally{setLoading($('loginBtn'),false)}});
 $('changeForm').addEventListener('submit',async e=>{e.preventDefault();$('changeError').textContent='';if($('next').value!==$('confirm').value){$('changeError').textContent='两次输入的新密码不一致';return}if($('next').value.length<12){$('changeError').textContent='新密码长度至少为 12 个字符';return}setLoading($('changeBtn'),true);try{await request('/api/admin/change-password',{current_password:$('current').value,new_password:$('next').value});alert('密码修改成功，所有之前的会话已失效，请用新密码重新登录。');location.replace('/')}catch(x){$('changeError').textContent=getPasswordError(x.message)}finally{setLoading($('changeBtn'),false)}});
 fetch('/api/admin/session',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{if(d.authenticated&&d.must_change_password){$('login').hidden=true;$('change').hidden=false;$('next').focus()}else if(d.authenticated)location.replace('/')}).catch(()=>{});
 </script>

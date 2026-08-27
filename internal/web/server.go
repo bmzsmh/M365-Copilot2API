@@ -479,7 +479,7 @@ func (s *Server) adminLogin(w http.ResponseWriter, r *http.Request) {
 		seconds := int(wait.Seconds()) + 1
 		w.Header().Set("Retry-After", fmt.Sprint(seconds))
 		auditLog(r, "admin_login_locked", fmt.Sprintf("locked wait=%ds", seconds))
-		writeOpenAIError(w, http.StatusTooManyRequests, "rate_limit_error", "too many failed login attempts; try again later")
+		writeOpenAIError(w, http.StatusTooManyRequests, "rate_limit_error", "admin_login_locked")
 		return
 	}
 	var body struct {
@@ -493,7 +493,7 @@ func (s *Server) adminLogin(w http.ResponseWriter, r *http.Request) {
 	if decodeErr != nil || body.Password == "" || !checkPassword(passwordHash, body.Password) {
 		s.recordLoginFailure(ip, now)
 		auditLog(r, "admin_login_failed", "invalid password")
-		writeOpenAIError(w, http.StatusUnauthorized, "auth_error", "invalid administrator password")
+		writeOpenAIError(w, http.StatusUnauthorized, "auth_error", "invalid_administrator_password")
 		return
 	}
 	s.clearLoginFailures(ip)
