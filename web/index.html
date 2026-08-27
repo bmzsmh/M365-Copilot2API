@@ -854,7 +854,7 @@ const localeText={
   'No models available': {'zh-CN':'暂无可用模型','zh-TW':'暫無可用模型','ja':'利用可能なモデルはありません','ko':'사용 가능한 모델 없음','es':'No hay modelos disponibles','fr':'Aucun modèle disponible','de':'Keine Modelle verfügbar','pt-BR':'Nenhum modelo disponível','ru':'Нет доступных моделей','ar':'لا توجد نماذج متاحة'},
   'Not tested': {'zh-CN':'未测试','zh-TW':'未測試','ja':'未テスト','ko':'미테스트','es':'Sin probar','fr':'Non testé','de':'Nicht getestet','pt-BR':'Não testado','ru':'Не протестирован','ar':'لم يتم اختباره'},
   'No trend data yet; it will appear after requests are made.': {'zh-CN':'暂无趋势数据，产生请求后自动生成','zh-TW':'暫無趨勢資料，產生要求後自動產生','ja':'トレンドデータはまだありません。リクエスト後に表示されます','ko':'추세 데이터 없음. 요청 후 표시됩니다','es':'Aún no hay datos de tendencia; aparecerán tras las solicitudes','fr':'Pas encore de données de tendance ; elles apparaîtront après les requêtes','de':'Noch keine Trenddaten; sie erscheinen nach Anfragen','pt-BR':'Sem dados de tendência ainda; aparecerão após solicitações','ru':'Пока нет данных о трендах; они появятся после запросов','ar':'لا توجد بيانات اتجاهات بعد؛ ستظهر بعد إجراء الطلبات'},
-  'No data': {'zh-CN':'暂无数据','zh-TW':'暫無資料','ja':'データはありません','ko':'데이터 없음','es':'Sin datos','fr':'Aucune donnée','de':'Keine Daten','pt-BR':'Sem dados','ru':'Нет данных','ar':'لا توجد بيانات'},
+  'No data': {'zh-CN':'暂无数据','zh-TW':'暫無資料','ja':'データはありません','ko':'데이터 없음','es':'Sin datos','fr':'Aucune donnée','de':'Keine Daten','pt-BR':'Sem dados','ru':'Нет данных','ar':'لا توجد 데이터'},
   'Healthy': {'zh-CN':'正常','zh-TW':'正常','ja':'正常','ko':'정상','es':'Saludable','fr':'Sain','de':'Gesund','pt-BR':'Saudável','ru':'Работает','ar':'سليم'},
   'Unreachable': {'zh-CN':'不可达','zh-TW':'不可達','ja':'到達不能','ko':'연결 불가','es':'Inaccesible','fr':'Injoignable','de':'Nicht erreichbar','pt-BR':'Inacessível','ru':'Недоступен','ar':'غير قابل للوصول'},
   'Upstream error': {'zh-CN':'上游异常','zh-TW':'上游異常','ja':'アップストリームエラー','ko':'업스트림 오류','es':'Error de origen','fr':'Erreur en amont','de':'Upstream-Fehler','pt-BR':'Erro de origem','ru':'Ошибка вышестоящего сервиса','ar':'خطأ المنبع'},
@@ -1060,8 +1060,8 @@ async function loadRecentRequests(){
       <td><span class="token-stack"><b>${(x.input_tokens||0)+(x.output_tokens||0)+(x.cache_tokens||0)}</b></span></td>
       <td>${x.error?'<span class="usage-status err">Error</span>':'<span class="usage-status">Success</span>'}</td>
     </tr>`).join('');
-    $('dashRecentRows').innerHTML=rows||'<tr><td colspan="5" class="empty">No requests yet</td></tr>';
-  }catch(e){$('dashRecentRows').innerHTML=`<tr><td colspan="5" class="empty">No requests yet</td></tr>`;}
+    $('dashRecentRows').innerHTML=rows||`<tr><td colspan="5" class="empty">${translateText('No requests yet')}</td></tr>`;
+  }catch(e){$('dashRecentRows').innerHTML=`<tr><td colspan="5" class="empty">${translateText('No requests yet')}</td></tr>`;}
 }
 
 let _accountsCache=[],_accountFilter='all';
@@ -1082,7 +1082,7 @@ function renderAccounts(){
     const scheduleEnabled=x.scheduleEnabled!==false;
     const proxyLabel=x.boundProxy?`<span style="font-size:11px;word-break:break-all">${esc(x.boundProxy)}</span>`:'<span style="color:var(--muted);font-size:11px">—</span>';
     return `<tr><td><div class="account-cell"><div class="avatar">${(x.displayName||x.email||'M')[0]}</div><div><b>${x.displayName||x.email}</b><div style="font-size:11px;color:var(--muted)">${x.email||''}</div></div></div></td><td style="font-size:12px;white-space:nowrap">${calls}</td><td>${status}</td><td style="font-size:12px;color:var(--muted)">${x.updatedAt?new Date(x.updatedAt).toLocaleString():'-'}</td><td><button class="btn-sm btn${scheduleEnabled?'':' danger'}" onclick="toggleAccountSchedule('${x.id}',${!scheduleEnabled})">${scheduleEnabled?'Enabled':'Disabled'}</button></td><td>${proxyLabel} <button class="btn-sm btn" style="margin-top:2px" onclick="bindAccountProxy('${x.id}','${esc(x.boundProxy||'')}')">Bind</button></td><td><button class="btn-sm btn danger" onclick="deleteAccount('${x.id}')">Delete</button></td></tr>`;
-  }).join(''):'<tr><td colspan="7" class="empty">No matching accounts</td></tr>';
+  }).join(''):'<tr><td colspan="7" class="empty">${translateText('No matching accounts')}</td></tr>';
 }
 async function loadAccounts(){
   try{
@@ -1155,7 +1155,7 @@ async function loadKeys(){
       <button class="btn-sm btn" onclick="editKey('${x.id}','${x.name.replace(/'/g,"\\'")}')">Edit</button>
       <button class="btn-sm btn ${x.revoked?'success':'danger'}" onclick="toggleKey('${x.id}',${x.revoked})">${x.revoked?'Enable':'Disable'}</button>
       <button class="btn-sm btn danger" onclick="revokeKey('${x.id}')">Delete</button>
-    </td></tr>`).join(''):'<tr><td colspan="6" class="empty">No API keys</td></tr>';
+    </td></tr>`).join(''):`<tr><td colspan="6" class="empty">${translateText('No API keys')}</td></tr>`;
   }catch(e){$('keyRows').innerHTML=`<tr><td colspan="6" class="empty">${e.message}</td></tr>`;}
 }
 
@@ -1231,7 +1231,7 @@ async function loadUsage(){
 
 function renderTrend(trend){
   const wrap=$('ugTrendWrap');
-  if(!trend||!trend.length){if(wrap)wrap.innerHTML='<div class="chart-empty"><i data-lucide="line-chart"></i>No trend data yet; it will appear after requests are made.</div>';try{lucide.createIcons();}catch(e){}return;}
+  if(!trend||!trend.length){if(wrap)wrap.innerHTML=`<div class="chart-empty"><i data-lucide="line-chart"></i>${translateText('No trend data yet; it will appear after requests are made.')}</div>`;try{lucide.createIcons();}catch(e){}return;}
   const W=560,H=160,P=8;
   const max=Math.max(...trend.map(t=>t.tokens),1);
   let path='',area='';
@@ -1273,7 +1273,7 @@ function renderTrend(trend){
 
 function renderBars(id,items,labelFn,valKey){
   const el=$(id);
-  if(!items.length){el.innerHTML='<div class="chart-empty"><i data-lucide="chart-bar"></i>No data</div>';try{lucide.createIcons();}catch(e){}return;}
+  if(!items.length){el.innerHTML=`<div class="chart-empty"><i data-lucide="chart-bar"></i>${translateText('No data')}</div>`;try{lucide.createIcons();}catch(e){}return;}
   const palettes=['','green','orange','purple','teal','red','pink'];
   const max=Math.max(...items.map(i=>i[valKey]),1);
   const top=items.slice(0,8);
@@ -1297,7 +1297,7 @@ async function loadUsageLogs(){
       <td><span class="token-stack"><b>${(x.input_tokens||0)+(x.output_tokens||0)+(x.cache_tokens||0)}</b> in${x.input_tokens||0}/out${x.output_tokens||0}/cache${x.cache_tokens||0}</span></td>
       <td style="font-size:12px;color:var(--muted)">${(x.duration_ms||0)} ms</td>
     </tr>`).join('');
-    $('ugLogRows').innerHTML=rows||'<tr><td colspan="6" class="empty">No requests yet</td></tr>';
+    $('ugLogRows').innerHTML=rows||`<tr><td colspan="6" class="empty">${translateText('No requests yet')}</td></tr>`;
     const totalPages=Math.max(1,Math.ceil(ugTotal/UG_PAGE));
     $('ugPageInfo').textContent=`Page ${ugPageNo+1} / ${totalPages} · ${ugTotal} total`;
     $('ugPrev').disabled=ugPageNo<=0;
@@ -1430,7 +1430,7 @@ async function loadConversations(){
         <td style="font-size:12px;color:var(--muted)">${updated?new Date(updated).toLocaleString():'-'}</td>
         <td><div style="display:flex;gap:6px"><button class="btn-sm btn" data-conv-action="view">View</button><button class="btn-sm btn danger" data-conv-action="delete">Delete</button></div></td>
       </tr>`;
-    }).join(''):'<tr><td colspan="5" class="empty">No conversations</td></tr>';
+    }).join(''):`<tr><td colspan="5" class="empty">${translateText('No conversations')}</td></tr>`;
     $('convRows').querySelectorAll('.conv-row').forEach(row=>{
       row.addEventListener('click',event=>{
         const action=event.target.closest('[data-conv-action]')?.dataset.convAction;
@@ -1499,7 +1499,7 @@ async function loadProxies(){
   try{
     const d=await api('/api/admin/proxy-pool');
     const p=d.proxies||[];
-    $('proxyRows').innerHTML=p.length?p.map(proxyRow).join(''):'<tr><td colspan="6" class="empty">No proxies; requests will connect directly</td></tr>';
+    $('proxyRows').innerHTML=p.length?p.map(proxyRow).join(''):`<tr><td colspan="6" class="empty">${translateText('No proxies; requests will connect directly')}</td></tr>`;
   }catch(e){$('proxyRows').innerHTML=`<tr><td colspan="6" class="empty">${e.message}</td></tr>`;}
 }
 async function proxyAdd(){
@@ -1544,11 +1544,11 @@ async function proxyTest(){
 }
 
 async function loadModelTest(){
-  $('modelTestRows').innerHTML='<tr><td colspan="4" class="empty">Loading...</td></tr>';
+  $('modelTestRows').innerHTML=`<tr><td colspan="4" class="empty">${translateText('Loading...')}</td></tr>`;
   try{
     const d=await api('/api/admin/models');
     const models=d.data||[];
-    if(!models.length){$('modelTestRows').innerHTML='<tr><td colspan="4" class="empty">No models available</td></tr>';return;}
+    if(!models.length){$('modelTestRows').innerHTML=`<tr><td colspan="4" class="empty">${translateText('No models available')}</td></tr>`;return;}
     $('modelTestRows').innerHTML=models.map(m=>`<tr data-model="${esc(m.id)}"><td><b>${esc(m.id)}</b></td><td><span class="status"><i></i>Not tested</span></td><td style="font-size:12px;color:var(--muted)">-</td><td style="font-size:12px;color:var(--muted)">点击"测试全部"</td></tr>`).join('');
   }catch(e){$('modelTestRows').innerHTML=`<tr><td colspan="4" class="empty">${e.message}</td></tr>`;}
 }
