@@ -283,15 +283,15 @@ body{background:var(--bg);color:var(--text);font-family:"Inter","SF Pro Display"
   <div style="width:min(400px,calc(100vw - 32px));animation:scaleIn .5s var(--ease-out)">
     <div style="text-align:center;margin-bottom:24px">
       <div class="logo" style="display:flex;align-items:center;gap:10px;justify-content:center;margin:0 auto 12px;padding:0"><div class="logo-mark" style="width:32px;height:32px"><span></span><span></span><span></span><span></span></div><span style="font-size:24px;font-weight:700;letter-spacing:-0.02em">M365 Copilot2API</span></div>
-      <p style="color:var(--muted);font-size:14px;margin-top:4px">Administrator Login</p>
+      <p style="color:var(--muted);font-size:14px;margin-top:4px">管理员登录</p>
     </div>
     <form id="loginForm" style="background:var(--surface);-webkit-backdrop-filter:blur(40px) saturate(180%);backdrop-filter:blur(40px) saturate(180%);border:1px solid var(--surface-border);border-radius:var(--radius);padding:32px;box-shadow:var(--shadow-lg)">
       <div class="form-group">
-        <label class="form-label">Password</label>
+        <label class="form-label">密码</label>
         <input class="form-input" id="loginPassword" type="password" placeholder="请输入管理员密码（默认：admin123）" autofocus>
         <div class="form-hint" style="margin-top:4px">默认密码为 <code>admin123</code>，首次登录后需修改密码。</div>
       </div>
-      <button type="submit" class="btn primary" style="width:100%;margin-top:8px">Log in</button>
+      <button type="submit" class="btn primary" style="width:100%;margin-top:8px">登录</button>
     </form>
   </div>
 </div>
@@ -389,31 +389,31 @@ if (response.output_text) {
         </div>
         <div class="usage-overview">
           <div class="usage-overview-item">
-            <div class="usage-overview-top"><i data-lucide="flame"></i> Last 24 hours</div>
+            <div class="usage-overview-top"><i data-lucide="flame"></i> 近 24 小时</div>
             <span class="usage-overview-value" id="ov24hTok">0<small>tokens</small></span>
-            <span class="usage-overview-sub" id="ov24hReq">0 requests</span>
+            <span class="usage-overview-sub" id="ov24hReq">0 次请求</span>
           </div>
           <div class="usage-overview-item">
-            <div class="usage-overview-top"><i data-lucide="trending-up"></i> All-time usage</div>
+            <div class="usage-overview-top"><i data-lucide="trending-up"></i> 累计用量</div>
             <span class="usage-overview-value" id="ovTotalTok">0<small>tokens</small></span>
-            <span class="usage-overview-sub" id="ovTotalReq">0 requests</span>
+            <span class="usage-overview-sub" id="ovTotalReq">0 次请求</span>
           </div>
           <div class="usage-overview-item">
-            <div class="usage-overview-top"><i data-lucide="activity"></i> Request count</div>
+            <div class="usage-overview-top"><i data-lucide="activity"></i> 请求数</div>
             <span class="usage-overview-value" id="ovTodayTok">0<small>tokens</small></span>
-            <span class="usage-overview-sub" id="ovTodayReq">0 requests today</span>
+            <span class="usage-overview-sub" id="ovTodayReq">0 次请求（今日）</span>
           </div>
           <div class="usage-overview-item">
-            <div class="usage-overview-top"><i data-lucide="piggy-bank"></i> Cache hits</div>
+            <div class="usage-overview-top"><i data-lucide="piggy-bank"></i> 缓存命中</div>
             <span class="usage-overview-value" id="ovCacheHits">0<small>tokens</small></span>
-            <span class="usage-overview-sub" id="ovCacheRate">Hit rate 0%</span>
+            <span class="usage-overview-sub" id="ovCacheRate">命中率 0%</span>
           </div>
         </div>
         <div class="stats">
-          <div class="stat"><span class="stat-label">Total sessions</span><span class="stat-value" id="stat-sessions">0</span><span class="stat-unit">total</span></div>
-          <div class="stat"><span class="stat-label">Cache hits</span><span class="stat-value" id="stat-hits">0</span><span class="stat-unit">hits</span></div>
-          <div class="stat"><span class="stat-label">Hit rate</span><span class="stat-value" id="stat-rate">0</span><span class="stat-unit">%</span></div>
-          <div class="stat"><span class="stat-label">Tokens saved</span><span class="stat-value" id="stat-saved">0</span><span class="stat-unit" style="font-size:12px">saved</span></div>
+          <div class="stat"><span class="stat-label">总会话数</span><span class="stat-value" id="stat-sessions">0</span><span class="stat-unit">次</span></div>
+          <div class="stat"><span class="stat-label">缓存命中</span><span class="stat-value" id="stat-hits">0</span><span class="stat-unit">次</span></div>
+          <div class="stat"><span class="stat-label">命中率</span><span class="stat-value" id="stat-rate">0</span><span class="stat-unit">%</span></div>
+          <div class="stat"><span class="stat-label">节省 Token</span><span class="stat-value" id="stat-saved">0</span><span class="stat-unit" style="font-size:12px">已节省</span></div>
         </div>
         <div class="card">
           <div class="card-head"><span class="card-title">快捷操作</span></div>
@@ -686,7 +686,7 @@ const localeStorageKey='m365_locale';
 const localeSelectionKey='m365_locale_selected';
 const SUPPORTED_LOCALES=['en','zh-CN','zh-TW','ja','ko','es','fr','de','pt-BR','ru','ar'];
 const localeText={
-  'm365_cloud_not_configured': {'zh-CN':'M365 云客户端未配置，请先通过 PKCE 授权添加一个 M365 账号。','zh-TW':'M365 雲客戶端未配置，請先通過 PKCE 授權新增一個 M365 帳號。','ja':'M365 クラウドクライアントが設定されていません。PKCE 認証で M365 アカウントを追加してください。','ko':'M365 클라우드 클라이언트가 구성되지 않았습니다. PKCE 인증으로 M365 계정을 추가하세요.','es':'Cliente en la nube de M365 no configurado. Agregue una cuenta M365 primero mediante autorización PKCE.','fr':'Client cloud M365 non configuré. Ajoutez d\\'abord un compte M365 via l\\'autorisation PKCE.','de':'M365-Cloud-Client nicht konfiguriert. Fügen Sie zuerst ein M365-Konto über PKCE-Autorisierung hinzu.','pt-BR':'Cliente cloud M365 não configurado. Adicione uma conta M365 primeiro via autorização PKCE.','ru':'Облачный клиент M365 не настроен. Сначала добавьте учетную запись M365 через авторизацию PKCE.','ar':'عميل سحابة M365 غير مهيأ. أضف حساب M365 أولاً عبر تفويض PKCE.'},
+  'm365_cloud_not_configured': {'zh-CN':'M365 云客户端未配置，请先通过 PKCE 授权添加一个 M365 账号。','zh-TW':'M365 雲客戶端未配置，請先通過 PKCE 授權新增一個 M365 帳號。','ja':'M365 クラウドクライアントが設定されていません。PKCE 認証で M365 アカウントを追加してください。','ko':'M365 클라우드 클라이언트가 구성되지 않았습니다. PKCE 인증으로 M365 계정을 추가하세요.','es':'Cliente en la nube de M365 no configurado. Agregue una cuenta M365 primero mediante autorización PKCE.','fr':'Client cloud M365 non configuré. Ajoutez d’abord un compte M365 via l’autorisation PKCE.','de':'M365-Cloud-Client nicht konfiguriert. Fügen Sie zuerst ein M365-Konto über PKCE-Autorisierung hinzu.','pt-BR':'Cliente cloud M365 não configurado. Adicione uma conta M365 primeiro via autorização PKCE.','ru':'Облачный клиент M365 не настроен. Сначала добавьте учетную запись M365 через авторизацию PKCE.','ar':'عميل سحابة M365 غير مهيأ. أضف حساب M365 أولاً عبر تفويض PKCE.'},
   'Administrator Login': {'zh-CN':'管理员登录','zh-TW':'管理員登入','ja':'管理者ログイン','ko':'관리자 로그인','es':'Inicio de sesión de administrador','fr':'Connexion administrateur','de':'Administrator-Anmeldung','pt-BR':'Login de administrador','ru':'Вход администратора','ar':'تسجيل دخول المسؤول'},
   'Password': {'zh-CN':'密码','zh-TW':'密碼','ja':'パスワード','ko':'비밀번호','es':'Contraseña','fr':'Mot de passe','de':'Passwort','pt-BR':'Senha','ru':'Пароль','ar':'كلمة المرور'},
   'Enter administrator password': {'zh-CN':'请输入管理员密码','zh-TW':'請輸入管理員密碼','ja':'管理者パスワードを入力してください','ko':'관리자 비밀번호를 입력하세요','es':'Introduzca la contraseña de administrador','fr':'Saisissez le mot de passe administrateur','de':'Administrator-Passwort eingeben','pt-BR':'Digite a senha do administrador','ru':'Введите пароль администратора','ar':'أدخل كلمة مرور المسؤول'},
@@ -781,15 +781,15 @@ const localeText={
   'Account': {'zh-CN':'账号','zh-TW':'帳號','ja':'アカウント','ko':'계정','es':'Cuenta','fr':'Compte','de':'Konto','pt-BR':'Conta','ru':'Учётная запись','ar':'الحساب'},
   'Proxy': {'zh-CN':'代理','zh-TW':'代理','ja':'プロキシ','ko':'프록시','es':'Proxy','fr':'Proxy','de':'Proxy','pt-BR':'Proxy','ru':'Прокси','ar':'الوكيل'},
   'Authorize and manage Microsoft accounts': {'zh-CN':'授权和管理 Microsoft 账号','zh-TW':'授權和管理 Microsoft 帳號','ja':'Microsoft アカウントの承認と管理','ko':'Microsoft 계정 인증 및 관리','es':'Autorizar y gestionar cuentas Microsoft','fr':'Autoriser et gérer les comptes Microsoft','de':'Microsoft-Konten autorisieren und verwalten','pt-BR':'Autorizar e gerenciar contas Microsoft','ru':'Авторизация и управление аккаунтами Microsoft','ar':'أذِن وإدارة حسابات Microsoft'},
-  'Click "Start authorization" below': {'zh-CN':'点击下方"开始授权"','zh-TW':'點擊下方「開始授權」','ja':'下の「承認を開始」をクリック','ko':'아래 "인증 시작" 클릭','es':'Haga clic en "Iniciar autorización" abajo','fr':'Cliquez sur « Démarrer l\'autorisation » ci-dessous','de':'Klicken Sie unten auf „Autorisierung starten"','pt-BR':'Clique em "Iniciar autorização" abaixo','ru':'Нажмите «Начать авторизацию» ниже','ar':'انقر "بدء التفويض" أدناه'},
+  'Click "Start authorization" below': {'zh-CN':'点击下方"开始授权"','zh-TW':'點擊下方「開始授權」','ja':'下の「承認を開始」をクリック','ko':'아래 "인증 시작" 클릭','es':'Haga clic en "Iniciar autorización" abajo','fr':'Cliquez sur « Démarrer l’autorisation » ci-dessous','de':'Klicken Sie unten auf „Autorisierung starten"','pt-BR':'Clique em "Iniciar autorização" abaixo','ru':'Нажмите «Начать авторизацию» ниже','ar':'انقر "بدء التفويض" أدناه'},
   'Your browser will open the Microsoft sign-in page': {'zh-CN':'浏览器将打开 Microsoft 登录页面','zh-TW':'瀏覽器將開啟 Microsoft 登入頁面','ja':'ブラウザで Microsoft サインインページが開きます','ko':'브라우저에서 Microsoft 로그인 페이지가 열립니다','es':'Su navegador abrirá la página de inicio de sesión de Microsoft','fr':'Votre navigateur ouvrira la page de connexion Microsoft','de':'Ihr Browser öffnet die Microsoft-Anmeldeseite','pt-BR':'Seu navegador abrirá a página de entrada da Microsoft','ru':'Браузер откроет страницу входа Microsoft','ar':'سيفتح متصفحك صفحة تسجيل دخول Microsoft'},
   'Copy the full callback URL': {'zh-CN':'复制完整回调地址','zh-TW':'複製完整回呼位址','ja':'完全なコールバック URL をコピー','ko':'전체 콜백 URL 복사','es':'Copiar la URL de devolución completa','fr':'Copier l\'URL de rappel complète','de':'Vollständige Callback-URL kopieren','pt-BR':'Copie a URL de retorno completa','ru':'Скопируйте полный URL обратного вызова','ar':'انسخ عنوان URL الكامل لإعادة التوجيه'},
   'After signing in, copy the full URL beginning with http from the address bar': {'zh-CN':'登录完成后，复制地址栏中以 http 开头的完整网址','zh-TW':'登入完成後，複製網址列中以 http 開頭的完整網址','ja':'サインイン後、アドレスバーから http で始まる完全な URL をコピー','ko':'로그인 후 주소창에서 http로 시작하는 전체 URL 복사','es':'Tras iniciar sesión, copie la URL completa que comienza con http desde la barra de direcciones','fr':'Après la connexion, copiez l\'URL complète commençant par http depuis la barre d\'adresse','de':'Kopieren Sie nach der Anmeldung die vollständige, mit http beginnende URL aus der Adressleiste','pt-BR':'Após entrar, copie a URL completa começando com http da barra de endereços','ru':'После входа скопируйте полный URL, начинающийся с http, из адресной строки','ar':'بعد تسجيل الدخول، انسخ عنوان URL الكامل الذي يبدأ بـ http من شريط العنوان'},
   'Paste and confirm': {'zh-CN':'粘贴并确认','zh-TW':'貼上並確認','ja':'貼り付けて確認','ko':'붙여넣고 확인','es':'Pegar y confirmar','fr':'Coller et confirmer','de':'Einfügen und bestätigen','pt-BR':'Colar e confirmar','ru':'Вставить и подтвердить','ar':'الصق وأكد'},
-  'Paste it below and click "Confirm and add" to finish authorization': {'zh-CN':'粘贴到下方输入框，点击"确认添加"完成授权','zh-TW':'貼到下方輸入框，點擊「確認新增」完成授權','ja':'下の入力欄に貼り付けて「確認して追加」をクリックし、承認を完了','ko':'아래 입력란에 붙여넣고 "확인 및 추가"를 클릭하여 인증 완료','es':'Péguela abajo y haga clic en "Confirmar y añadir" para finalizar la autorización','fr':'Collez-la ci-dessous et cliquez sur « Confirmer et ajouter » pour terminer l\'autorisation','de':'Fügen Sie sie unten ein und klicken Sie auf „Bestätigen und hinzufügen", um die Autorisierung abzuschließen','pt-BR':'Cole abaixo e clique em "Confirmar e adicionar" para concluir a autorização','ru':'Вставьте его ниже и нажмите «Подтвердить и добавить», чтобы завершить авторизацию','ar':'الصقها أدناه وانقر "تأكيد وإضافة" لإكمال التفويض'},
-  'Start authorization': {'zh-CN':'开始授权','zh-TW':'開始授權','ja':'承認を開始','ko':'인증 시작','es':'Iniciar autorización','fr':'Démarrer l\'autorisation','de':'Autorisierung starten','pt-BR':'Iniciar autorização','ru':'Начать авторизацию','ar':'بدء التفويض'},
+  'Paste it below and click "Confirm and add" to finish authorization': {'zh-CN':'粘贴到下方输入框，点击"确认添加"完成授权','zh-TW':'貼到下方輸入框，點擊「確認新增」完成授權','ja':'下の入力欄に貼り付けて「確認して追加」をクリックし、承認を完了','ko':'아래 입력란에 붙여넣고 "확인 및 추가"를 클릭하여 인증 완료','es':'Péguela abajo y haga clic en "Confirmar y añadir" para finalizar la autorización','fr':'Collez-la ci-dessous et cliquez sur « Confirmer et ajouter » pour terminer l’autorisation','de':'Fügen Sie sie unten ein und klicken Sie auf „Bestätigen und hinzufügen", um die Autorisierung abzuschließen','pt-BR':'Cole abaixo e clique em "Confirmar e adicionar" para concluir a autorização','ru':'Вставьте его ниже и нажмите «Подтвердить и добавить», чтобы завершить авторизацию','ar':'الصقها أدناه وانقر "تأكيد وإضافة" لإكمال التفويض'},
+  'Start authorization': {'zh-CN':'开始授权','zh-TW':'開始授權','ja':'承認を開始','ko':'인증 시작','es':'Iniciar autorización','fr':'Démarrer l’autorisation','de':'Autorisierung starten','pt-BR':'Iniciar autorização','ru':'Начать авторизацию','ar':'بدء التفويض'},
   'Important': {'zh-CN':'重要提示','zh-TW':'重要提示','ja':'重要','ko':'중요','es':'Importante','fr':'Important','de':'Wichtig','pt-BR':'Importante','ru':'Важно','ar':'مهم'},
-  'After authorization,': {'zh-CN':'授权完成后请','zh-TW':'授權完成後請','ja':'承認後、','ko':'인증 후,','es':'Después de la autorización,','fr':'Après l\'autorisation,','de':'Nach der Autorisierung','pt-BR':'Após a autorização,','ru':'После авторизации','ar':'بعد التفويض،'},
+  'After authorization,': {'zh-CN':'授权完成后请','zh-TW':'授權完成後請','ja':'承認後、','ko':'인증 후,','es':'Después de la autorización,','fr':'Après l’autorisation,','de':'Nach der Autorisierung','pt-BR':'Após a autorização,','ru':'После авторизации','ar':'بعد التفويض،'},
   'ignore the content of the popup page': {'zh-CN':'忽略弹出页面的内容','zh-TW':'忽略彈出頁面的內容','ja':'ポップアップページの内容は無視してください','ko':'팝업 페이지 내용 무시','es':'ignore el contenido de la página emergente','fr':'ignorez le contenu de la page contextuelle','de':'ignorieren Sie den Inhalt der Popup-Seite','pt-BR':'ignore o conteúdo da página pop-up','ru':'игнорируйте содержимое всплывающей страницы','ar':'تجاهل محتوى صفحة النافذة المنبثقة'},
   'and copy the full callback URL from the browser address bar, including the': {'zh-CN':'，复制浏览器地址栏中完整的回调地址（包含','zh-TW':'，複製瀏覽器網址列中完整的回呼位址（包含','ja':'ブラウザのアドレスバーから完全なコールバック URL をコピーし、','ko':'브라우저 주소창에서 전체 콜백 URL을 복사하고','es':'y copie la URL de devolución completa de la barra de direcciones del navegador, incluidos los','fr':'et copiez l\'URL de rappel complète depuis la barre d\'adresse du navigateur, y compris les','de':'und kopieren Sie die vollständige Callback-URL aus der Browser-Adressleiste, einschließlich der','pt-BR':'e copie a URL de retorno completa da barra de endereços do navegador, incluindo os','ru':'и скопируйте полный URL обратного вызова из адресной строки браузера, включая','ar':'وانسخ عنوان URL الكامل لإعادة التوجيه من شريط عنوان المتصفح، بما في ذلك'},
   'parameters.': {'zh-CN':'参数）。','zh-TW':'參數）。','ja':'パラメータを含めてください。','ko':'매개변수를 포함하세요.','es':'parámetros.','fr':'paramètres.','de':'Parameter.','pt-BR':'parâmetros.','ru':'параметры.','ar':'المعلمات.'},
@@ -1055,14 +1055,14 @@ async function loadStats(){
     $('stat-rate').textContent=(s.hit_rate||0).toFixed(1);
     $('stat-saved').textContent=(s.tokens_saved||0);
     $('ovCacheHits').textContent=fmtTok(s.cache_hits||0);
-    $('ovCacheRate').textContent='Hit rate '+((s.hit_rate||0)).toFixed(1)+'%';
+    $('ovCacheRate').textContent=translateText('Hit rate')+' '+((s.hit_rate||0)).toFixed(1)+'%';
     const sum=(u.stats||{}).summary||{};
     $('ov24hTok').textContent=fmtTok(sum.last24h_tokens||0);
-    $('ov24hReq').textContent=(sum.last24h_requests||0)+' requests';
+    $('ov24hReq').textContent=(sum.last24h_requests||0)+' 次请求';
     $('ovTotalTok').textContent=fmtTok(sum.tokens||0);
-    $('ovTotalReq').textContent=(sum.requests||0)+' requests';
+    $('ovTotalReq').textContent=(sum.requests||0)+' 次请求';
     $('ovTodayTok').textContent=fmtTok(sum.today_tokens||0);
-    $('ovTodayReq').textContent=(sum.today_requests||0)+' requests today';
+    $('ovTodayReq').textContent=(sum.today_requests||0)+' 次请求（今日）';
     loadRecentRequests();
   }catch(e){}
 }
@@ -1099,7 +1099,7 @@ function renderAccounts(){
     const scheduleEnabled=x.scheduleEnabled!==false;
     const proxyLabel=x.boundProxy?`<span style="font-size:11px;word-break:break-all">${esc(x.boundProxy)}</span>`:'<span style="color:var(--muted);font-size:11px">—</span>';
     return `<tr><td><div class="account-cell"><div class="avatar">${(x.displayName||x.email||'M')[0]}</div><div><b>${x.displayName||x.email}</b><div style="font-size:11px;color:var(--muted)">${x.email||''}</div></div></div></td><td style="font-size:12px;white-space:nowrap">${calls}</td><td>${status}</td><td style="font-size:12px;color:var(--muted)">${x.updatedAt?new Date(x.updatedAt).toLocaleString():'-'}</td><td><button class="btn-sm btn${scheduleEnabled?'':' danger'}" onclick="toggleAccountSchedule('${x.id}',${!scheduleEnabled})">${scheduleEnabled?'Enabled':'Disabled'}</button></td><td>${proxyLabel} <button class="btn-sm btn" style="margin-top:2px" onclick="bindAccountProxy('${x.id}','${esc(x.boundProxy||'')}')">Bind</button></td><td><button class="btn-sm btn danger" onclick="deleteAccount('${x.id}')">Delete</button></td></tr>`;
-  }).join(''):'<tr><td colspan="7" class="empty">${translateText('No matching accounts')}</td></tr>';
+  }).join(''):`<tr><td colspan="7" class="empty">${translateText('No matching accounts')}</td></tr>`;
 }
 async function loadAccounts(){
   try{
@@ -1233,7 +1233,7 @@ async function loadUsage(){
     $('ug-req').textContent=fmtNum(s.requests);
     $('ug-req-sub').textContent='Today +'+(s.today_requests||0);
     $('ug-tok').textContent=fmtTok(s.tokens);
-    $('ug-tok-sub').textContent='Input '+(s.input||0)+' · Output '+(s.output||0);
+    $('ug-tok-sub').textContent='输入 '+(s.input||0)+' · 输出 '+(s.output||0);
     $('ug-cache').textContent=fmtTok(s.cache);
     $('ug-ms').textContent=(s.avg_ms||0).toLocaleString();
     renderTrend((d.stats||{}).trend||[]);
@@ -1499,9 +1499,9 @@ async function cleanupAll(){
 
 function proxyRow(x){
   const inCooldown=x.cooldownUntil&&new Date(x.cooldownUntil)>new Date();
-  const badge=x.health==='reachable'?'<span class="status online"><i></i>Healthy</span>':x.health==='unreachable'?'<span class="status offline"><i></i>Unreachable</span>':x.health==='upstream_error'?'<span class="status warn"><i></i>Upstream error</span>':'<span class="status">Not checked</span>';
+  const badge=x.health==='reachable'?'<span class="status online"><i></i>'+translateText('Healthy')+'</span>':x.health==='unreachable'?'<span class="status offline"><i></i>'+translateText('Unreachable')+'</span>':x.health==='upstream_error'?'<span class="status warn"><i></i>'+translateText('Upstream error')+'</span>':'<span class="status">'+translateText('Not checked')+'</span>';
   return `<tr>
-    <td><code style="font-size:12px">${esc(x.url)}</code>${inCooldown?'<div style="font-size:11px;color:var(--muted)">Cooling down</div>':''}</td>
+    <td><code style="font-size:12px">${esc(x.url)}</code>${inCooldown?'<div style="font-size:11px;color:var(--muted)">'+translateText('Cooling down')+'</div>':''}</td>
     <td>${badge}</td>
     <td style="font-size:12px;color:var(--muted)">${x.latencyMs>0?x.latencyMs+' ms':'-'}</td>
     <td style="font-size:12px;color:var(--muted)">${x.failures||0}</td>
@@ -1524,7 +1524,7 @@ async function proxyAdd(){
   if(!raw)return showNotice('请输入代理地址','error');
   try{
     const d=await api('/api/admin/proxy-pool',{method:'POST',body:JSON.stringify({urls:[raw]})});
-    showNotice('Added '+d.added+' proxies','success');$('proxyInput').value='';loadProxies();
+    showNotice('已添加 '+d.added+' 个代理','success');$('proxyInput').value='';loadProxies();
   }catch(e){showNotice(e.message,'error');}
 }
 async function proxyRemove(url){
@@ -1580,7 +1580,7 @@ async function modelTestOne(id,row){
     const d=await api('/api/admin/models/test',{method:'POST',body:JSON.stringify({model:id})});
     const ms=Math.round(performance.now()-start);
     const content=d.reply||'（空回复）';
-    badge.innerHTML='<span class="status online"><i></i>Healthy</span>';
+    badge.innerHTML='<span class="status online"><i></i>'+translateText('Healthy')+'</span>';
     lat.textContent=ms+' ms';
     reply.textContent=String(content).slice(0,80);
   }catch(e){
