@@ -1173,7 +1173,7 @@ function renderAccounts(){
   list.forEach(x=>{
     const cooldown=x.cooldownUntil?`<div style="font-size:11px;color:var(--muted);margin-top:3px"><span>Cooldown until</span> ${new Date(x.cooldownUntil).toLocaleString()}</div>`:'';
     const status=x.status==='cooldown'?`<div><span class="status cooldown"><i></i>Cooldown</span>${cooldown}</div>`:x.status==='online'?'<span class="status online"><i></i>Online</span>':'<span class="status offline"><i></i>Offline</span>';
-    const calls=(x.rateLimited?`Limited after ${x.callCount||0} calls`:`Called ${x.callCount||0} times`)+accountQuotaDetails(x);
+    const calls=(x.rateLimited?`<span style="color:var(--warning);font-weight:600">⚠ Limited after ${x.callCount||0} calls</span>`:`Called ${x.callCount||0} times`)+accountQuotaDetails(x);
     const scheduleEnabled=x.scheduleEnabled!==false;
     const tr=document.createElement('tr');
     tr.innerHTML=`<td><div class="account-cell"><div class="avatar"></div><div><b></b><div class="account-email" style="font-size:11px;color:var(--muted)"></div></div></div></td><td style="font-size:12px;white-space:nowrap">${calls}<div style="margin-top:6px"><button class="btn-sm btn" data-account-action="probe">刷新额度</button></div></td><td>${status}</td><td style="font-size:12px;color:var(--muted)">${x.updatedAt?new Date(x.updatedAt).toLocaleString():'-'}</td><td><button class="btn-sm btn${scheduleEnabled?'':' danger'}" data-account-action="schedule">${scheduleEnabled?'Enabled':'Disabled'}</button></td><td><span class="account-proxy" style="font-size:11px;word-break:break-all"></span> <button class="btn-sm btn" style="margin-top:2px" data-account-action="proxy">Bind</button></td><td><button class="btn-sm btn danger" data-account-action="delete">Delete</button></td>`;
@@ -1204,7 +1204,18 @@ async function loadAccounts(){
     _accountsCache=d.accounts||[];
     renderAccounts();
     renderQuotaDashboard();
-  }catch(e){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.className='empty';td.textContent=e.message;tr.append(td);$('accountRows').replaceChildren(tr);}
+    const limited=_accountsCache.filter(x=>x.rateLimited||x.status==='cooldown');
+    if(limited.length){
+      showNotice(`${limited.length} 个账号处于限流/冷却（15m 后自动探活）`,'info');
+      const warn=document.createElement('div');
+      warn.className='quota-warn';
+      warn.style.cssText='margin:8px 0;padding:10px 12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);border-radius:10px;font-size:12px';
+      warn.innerHTML=`<b>${limited.length} 个账号暂时不可用（上游限流/冷却）</b><br>`+limited.map(x=>`• ${x.email||x.id} ${x.cooldownUntil?'至 '+new Date(x.cooldownUntil).toLocaleTimeString():''}`).join('<br>');
+      const dashboard=document.getElementById('quotaDashboard');
+      dashboard.querySelectorAll('.quota-warn').forEach(e=>e.remove());
+      dashboard.prepend(warn);
+    }
+    }catch(e){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.className='empty';td.textContent=e.message;tr.append(td);$('accountRows').replaceChildren(tr);}
 }
 function startAccountsPolling(){
   if(_accountsTimer) return;
