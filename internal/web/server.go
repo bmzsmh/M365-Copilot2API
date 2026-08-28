@@ -1055,9 +1055,20 @@ func (s *Server) callbackPKCE(w http.ResponseWriter, r *http.Request) {
 		writeOpenAIError(w, http.StatusInternalServerError, "internal_error", err.Error())
 		return
 	}
+	memoryDisabled := false
+	memoryError := ""
+	memoryCtx, cancelMemory := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancelMemory()
+	if _, err := disableAndVerifyMemory(memoryCtx, acc); err != nil {
+		memoryError = err.Error()
+		log.Printf("[personalization] account=%s disable memory failed: %v", acc.Email, err)
+	} else {
+		memoryDisabled = true
+		log.Printf("[personalization] account=%s saved memory and history insights disabled", acc.Email)
+	}
 	s.mu.Lock()
 	p.Status = "authenticated"
-	p.Account = map[string]any{"id": acc.ID, "email": acc.Email, "displayName": acc.DisplayName, "status": acc.Status, "oid": acc.OID, "tid": acc.TID}
+	p.Account = map[string]any{"id": acc.ID, "email": acc.Email, "displayName": acc.DisplayName, "status": acc.Status, "oid": acc.OID, "tid": acc.TID, "memoryDisabled": memoryDisabled, "memoryError": memoryError}
 	s.pkce[state] = p
 	s.mu.Unlock()
 	// Browser loopback callbacks should finish in a friendly page instead of
@@ -1068,8 +1079,10 @@ func (s *Server) callbackPKCE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOut(w, map[string]any{
-		"status":  "authenticated",
-		"account": map[string]any{"id": acc.ID, "email": acc.Email, "displayName": acc.DisplayName, "status": acc.Status, "oid": acc.OID, "tid": acc.TID},
+		"status":          "authenticated",
+		"memory_disabled": memoryDisabled,
+		"memory_error":    memoryError,
+		"account":         map[string]any{"id": acc.ID, "email": acc.Email, "displayName": acc.DisplayName, "status": acc.Status, "oid": acc.OID, "tid": acc.TID},
 	})
 }
 
