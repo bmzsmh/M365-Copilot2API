@@ -1983,6 +1983,7 @@ func (s *Server) openaiChat(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 		var text strings.Builder
+		var pending strings.Builder
 		var streamedTools []detectedToolCall
 		first := true
 		identityFilter := newPublicIdentityStreamFilter(model)
