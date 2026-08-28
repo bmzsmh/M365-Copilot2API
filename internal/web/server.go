@@ -1844,6 +1844,7 @@ func (s *Server) openaiChat(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[mcp] tools=%d mcp_gateway=%s", len(toolMaps), mcpServerURL)
 	}
 	validateCalls := func(stage string, calls []detectedToolCall) ([]detectedToolCall, int) {
+		calls = dedupeToolCalls(calls)
 		valid, rejected := validateDetectedToolCalls(calls, toolMaps, body.ToolChoice)
 		for _, call := range rejected {
 			log.Printf("[tool-validation] id=%s stage=%s rejected_name=%q reason=%q", requestID, stage, call.Name, call.Reason)
@@ -2015,8 +2016,7 @@ func (s *Server) openaiChat(w http.ResponseWriter, r *http.Request) {
 			if ev.Kind != "text" || ev.Text == "" {
 				return nil
 			}
-			text.WriteString(ev.Text)
-			return emitText(ev.Text)
+			return streamEmitText(ev, &text, &pending, emitText)
 		})
 		if err != nil && text.Len() == 0 && len(streamedTools) == 0 && !convReused && body.AccountID == "" && (IsRateLimited(err) || IsAuthFailure(err)) && (IsRateLimited(err) || body.ConversationID == "" || body.ConversationID == resolvedConversationID) {
 			originalErr := err
@@ -2053,8 +2053,7 @@ func (s *Server) openaiChat(w http.ResponseWriter, r *http.Request) {
 					if ev.Kind != "text" || ev.Text == "" {
 						return nil
 					}
-					text.WriteString(ev.Text)
-					return emitText(ev.Text)
+					return streamEmitText(ev, &text, &pending, emitText)
 				})
 				if err2 == nil {
 					if errors.Is(originalErr, chathub.ErrImageLimit) && s.accountPool != nil {
