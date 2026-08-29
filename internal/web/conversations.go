@@ -208,7 +208,7 @@ func (s *Server) handleM365ConversationDetail(w http.ResponseWriter, r *http.Req
 		writeOpenAIError(w, http.StatusBadRequest, "invalid_request_error", "conversation id is required")
 		return
 	}
-	session, found := s.sessionResolver.GetConversation(conversationID)
+	session, found := s.sessionResolver.GetConversation(tenantFromRequest(r), conversationID)
 	if !found {
 		writeOpenAIError(w, http.StatusNotFound, "conversation_not_found", "conversation history is not available")
 		return

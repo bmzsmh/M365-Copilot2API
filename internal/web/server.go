@@ -18,6 +18,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +33,13 @@ type pendingPKCE struct {
 	Account     any
 	Error       string
 	RedirectURI string
+}
+
+type pendingGraphAuthorization struct {
+	Verifier     string
+	Created      time.Time
+	AdminSession string
+	RedirectURI  string
 }
 
 func (s *Server) getRateLimitCooldown() time.Duration {
@@ -55,8 +63,6 @@ func (s *Server) featureFlags() chathub.FeatureFlags {
 		SydneyReconnect:      cfg.EnableSydneyReconnect,
 	}
 }
-
-const maxAccountProbe = 16
 
 const rateLimitProbePrompt = "Reply with exactly: OK"
 
@@ -151,10 +157,12 @@ func (s *Server) confirmRateLimitNotice(ctx context.Context, acc auth.AccountTok
 
 type Server struct {
 	mu                   sync.Mutex
+	requestSlots         chan struct{}
 	tokens               *auth.Store
 	accountPool          *accountHealth
 	accountConcurrency   *accountConcurrency
 	pkce                 map[string]pendingPKCE
+	graphAuthorizations  map[string]pendingGraphAuthorization
 	chat                 *chathub.Client
 	proxyClients         sync.Map
 	sessions             *sessionStore
@@ -244,11 +252,19 @@ func New() (*Server, error) {
 			sessionTTL = d
 		}
 	}
+	maxConcurrentRequests := 128
+	if raw := strings.TrimSpace(os.Getenv("M365_MAX_CONCURRENT_REQUESTS")); raw != "" {
+		if parsed, parseErr := strconv.Atoi(raw); parseErr == nil && parsed > 0 {
+			maxConcurrentRequests = parsed
+		}
+	}
 	return &Server{
-		tokens:             store,
-		accountPool:        newAccountHealth(),
-		accountConcurrency: newAccountConcurrency(),
-		pkce:               map[string]pendingPKCE{},
+		requestSlots:        make(chan struct{}, maxConcurrentRequests),
+		tokens:              store,
+		accountPool:         newAccountHealth(),
+		accountConcurrency:  newAccountConcurrency(),
+		pkce:                map[string]pendingPKCE{},
+		graphAuthorizations: map[string]pendingGraphAuthorization{},
 		chat: func() *chathub.Client {
 			c := chathub.NewClient()
 			c.Trace = func(meta map[string]any) { fmt.Printf("[multimodal-trace] %s\\n", mustJSON(meta)) }
@@ -359,6 +375,12 @@ func (s *Server) Routes() http.Handler {
 	m.HandleFunc("/api/admin/deployment/check", s.deploymentCheck)
 	m.HandleFunc("/api/admin/debug/logs", s.debugList)
 	m.HandleFunc("/api/admin/debug/detail", s.debugDetail)
+	m.HandleFunc("/api/admin/graph/config", s.graphConfigCheck)
+	m.HandleFunc("/api/admin/graph/authorization/start", s.graphAuthorizationStart)
+	m.HandleFunc("/api/admin/graph/authorization/callback", s.graphAuthorizationCallback)
+	m.HandleFunc("/api/admin/graph/authorization/status", s.graphAuthorizationStatus)
+	m.HandleFunc("/api/admin/graph/authorization/revoke", s.graphAuthorizationRevoke)
+	m.HandleFunc("/api/admin/graph/users/batch", s.graphBatchUsers)
 	m.HandleFunc("/api/health", s.health)
 	m.HandleFunc("/api/version", s.version)
 	m.HandleFunc("/api/update", s.update)
@@ -393,6 +415,7 @@ func (s *Server) Routes() http.Handler {
 	m.HandleFunc("/v1/models", s.openaiModels)
 	m.HandleFunc("/v1/chat/completions", s.openaiChat)
 	m.HandleFunc("/v1/responses", s.responses)
+	m.HandleFunc("/responses", s.responses)
 	m.HandleFunc("/v1/mcp/sse", mcp.HandleSSE)
 	m.HandleFunc("/v1/mcp/message", mcp.HandleMessage)
 	m.HandleFunc("/v1/mcp/tools", mcp.HandleToolsList)
@@ -405,7 +428,23 @@ func (s *Server) Routes() http.Handler {
 	m.HandleFunc("/v1/memory/instructions/", s.handleMemoryInstructionsID)
 	m.HandleFunc("/v1/memory/settings", s.handleMemorySettings)
 	m.HandleFunc("/", s.rootPage)
-	return recoverPanics(requestID(httpTrace(securityHeaders(s.adminMiddleware(s.debugMiddleware(m))))))
+	return recoverPanics(requestID(httpTrace(securityHeaders(s.limitConcurrency(s.adminMiddleware(s.debugMiddleware(m)))))))
+}
+
+func (s *Server) limitConcurrency(next http.Handler) http.Handler {
+	if s.requestSlots == nil {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case s.requestSlots <- struct{}{}:
+			defer func() { <-s.requestSlots }()
+			next.ServeHTTP(w, r)
+		default:
+			w.Header().Set("Retry-After", "1")
+			writeOpenAIError(w, http.StatusServiceUnavailable, "server_overloaded", "server is overloaded; retry shortly")
+		}
+	})
 }
 
 func (s *Server) adminMiddleware(next http.Handler) http.Handler {
@@ -418,7 +457,7 @@ func (s *Server) adminMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/v1/") {
+		if strings.HasPrefix(r.URL.Path, "/v1/") || r.URL.Path == "/responses" {
 			if !s.validAPIKey(r) {
 				writeOpenAIError(w, http.StatusUnauthorized, "auth_error", "valid API key required")
 				return
@@ -1092,10 +1131,12 @@ func (s *Server) resolveAccount(accountID string) (auth.AccountToken, error) {
 		s.mu.Lock()
 		preferred := s.lastHealthyAccount
 		s.mu.Unlock()
-		if preferred != "" && s.accountAvailable(preferred) && s.accountPool.Available(preferred) && s.accountConcurrency.Available(preferred) {
+		if preferred != "" && s.accountAvailable(preferred) {
 			if acc, err := s.tokens.EnsureValid(preferred); err == nil {
 				accountID = preferred
 				return acc, nil
+			} else {
+				s.accountPool.ReleaseProbe(preferred)
 			}
 		}
 		// No preferred account or it's unavailable; fall back to round-robin
@@ -1104,17 +1145,19 @@ func (s *Server) resolveAccount(accountID string) (auth.AccountToken, error) {
 			return auth.AccountToken{}, fmt.Errorf("no accounts; login first")
 		}
 		accountID = acc.ID
-		for i := 0; !s.accountAvailable(accountID) && i < maxAccountProbe; i++ {
+		selected := s.accountAvailable(accountID)
+		for i, count := 0, len(s.tokens.List()); !selected && i < count; i++ {
 			acc, ok = s.tokens.Next()
 			if !ok {
 				break
 			}
 			accountID = acc.ID
+			selected = s.accountAvailable(accountID)
 		}
 		if !s.tokens.ScheduleEnabled(accountID) {
 			return auth.AccountToken{}, fmt.Errorf("no accounts enabled for scheduling")
 		}
-		if !s.accountPool.Available(accountID) {
+		if !selected {
 			until := s.accountPool.EarliestRecovery()
 			retry := int(time.Until(until).Seconds())
 			if retry < 5 {
@@ -1122,11 +1165,11 @@ func (s *Server) resolveAccount(accountID string) (auth.AccountToken, error) {
 			}
 			return auth.AccountToken{}, &UpstreamHTTPError{Status: 429, RetryAfter: retry, Body: "all accounts are cooling down; try again later"}
 		}
-		if !s.accountConcurrency.Available(accountID) {
-			return auth.AccountToken{}, &UpstreamHTTPError{Status: 429, RetryAfter: 1, Body: "all accounts are at their concurrency limit; try again shortly"}
-		}
 	}
 	result, err := s.tokens.EnsureValid(accountID)
+	if err != nil && s.accountPool != nil {
+		s.accountPool.ReleaseProbe(accountID)
+	}
 	if err == nil {
 		s.mu.Lock()
 		s.lastHealthyAccount = accountID
@@ -1139,7 +1182,7 @@ func (s *Server) resolveAccount(accountID string) (auth.AccountToken, error) {
 // healthy, skipping the given id first, and validates its token. Used by the
 // failover path after a rate-limited or auth-failed attempt.
 func (s *Server) nextHealthyAccount(avoidID string) (auth.AccountToken, error) {
-	for i := 0; i < maxAccountProbe; i++ {
+	for i, count := 0, len(s.tokens.List()); i < count; i++ {
 		acc, ok := s.tokens.Next()
 		if !ok {
 			return auth.AccountToken{}, fmt.Errorf("no accounts; login first")
@@ -1150,7 +1193,11 @@ func (s *Server) nextHealthyAccount(avoidID string) (auth.AccountToken, error) {
 		if !s.accountAvailable(acc.ID) {
 			continue
 		}
-		return s.tokens.EnsureValid(acc.ID)
+		result, err := s.tokens.EnsureValid(acc.ID)
+		if err != nil && s.accountPool != nil {
+			s.accountPool.ReleaseProbe(acc.ID)
+		}
+		return result, err
 	}
 	return auth.AccountToken{}, fmt.Errorf("no healthy account available for failover")
 }

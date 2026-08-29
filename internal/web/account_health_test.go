@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -90,7 +92,7 @@ func TestAccountHealthLifecycle(t *testing.T) {
 	}
 }
 
-func TestCooldownExpiryClearsCallCount(t *testing.T) {
+func TestCooldownExpiryEntersHalfOpen(t *testing.T) {
 	h := newAccountHealth()
 	const id = "acct-expiry"
 	h.MarkCall(id)
@@ -99,32 +101,23 @@ func TestCooldownExpiryClearsCallCount(t *testing.T) {
 	h.mu.Lock()
 	h.cooldown[id] = time.Now().Add(-time.Second)
 	h.mu.Unlock()
-	if !h.Available(id) {
-		t.Fatal("expired cooldown must be available")
+	if h.Available(id) {
+		t.Fatal("expired rate-limit cooldown must remain unavailable until a probe succeeds")
 	}
-	if h.CallCount(id) != 0 {
-		t.Fatalf("call count=%d want 0", h.CallCount(id))
+	if !h.RateLimited(id) {
+		t.Fatal("expired cooldown must preserve rate-limit state")
 	}
-	if h.RateLimited(id) {
-		t.Fatal("expired cooldown still marked limited")
+	if !h.TryAcquire(id) {
+		t.Fatal("first request after cooldown must acquire the half-open probe")
 	}
-	h.MarkCall(id)
-	h.MarkFailure(id, &UpstreamHTTPError{Status: 429}, time.Minute)
-	h.mu.Lock()
-	h.cooldown[id] = time.Now().Add(-time.Second)
-	h.mu.Unlock()
-	if _, ok := h.CooldownUntil(id); ok || h.CallCount(id) != 0 {
-		t.Fatal("CooldownUntil must clear expired call count")
+	if h.TryAcquire(id) {
+		t.Fatal("only one half-open probe may run per account")
 	}
-	h.MarkCall(id)
-	h.MarkFailure(id, &UpstreamHTTPError{Status: 429}, time.Minute)
-	h.mu.Lock()
-	h.cooldown[id] = time.Now().Add(-time.Second)
-	h.mu.Unlock()
-	h.MarkCall(id)
-	if h.CallCount(id) != 1 {
-		t.Fatalf("post-cooldown call count=%d want 1", h.CallCount(id))
+	h.MarkSuccess(id)
+	if !h.Available(id) || h.RateLimited(id) {
+		t.Fatal("successful probe must restore scheduling and clear rate-limit state")
 	}
+
 	const authID = "acct-auth-expiry"
 	h.MarkCall(authID)
 	h.MarkFailure(authID, &UpstreamHTTPError{Status: 401}, time.Minute)
@@ -133,6 +126,63 @@ func TestCooldownExpiryClearsCallCount(t *testing.T) {
 	h.mu.Unlock()
 	if !h.Available(authID) || h.CallCount(authID) != 1 {
 		t.Fatal("auth cooldown must not clear call count")
+	}
+}
+
+func TestHalfOpenProbeRateLimitedAgain(t *testing.T) {
+	h := newAccountHealth()
+	const id = "acct-retry"
+	h.MarkFailure(id, &UpstreamHTTPError{Status: 429, RetryAfter: 90}, time.Minute)
+	h.mu.Lock()
+	h.cooldown[id] = time.Now().Add(-time.Second)
+	h.mu.Unlock()
+	if !h.TryAcquire(id) {
+		t.Fatal("half-open probe was not acquired")
+	}
+	h.MarkFailure(id, &UpstreamHTTPError{Status: 429, RetryAfter: 90}, time.Minute)
+	until, ok := h.CooldownUntil(id)
+	if !ok || time.Until(until) < 89*time.Second {
+		t.Fatalf("429 probe result did not re-enter Retry-After cooldown: %v", until)
+	}
+}
+
+func TestHalfOpenAllowsSingleConcurrentProbe(t *testing.T) {
+	h := newAccountHealth()
+	const id = "acct-concurrent-probe"
+	h.MarkFailure(id, &UpstreamHTTPError{Status: 429}, time.Minute)
+	h.mu.Lock()
+	h.cooldown[id] = time.Now().Add(-time.Second)
+	h.mu.Unlock()
+
+	const workers = 64
+	start := make(chan struct{})
+	var acquired atomic.Int32
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if h.TryAcquire(id) {
+				acquired.Add(1)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	if got := acquired.Load(); got != 1 {
+		t.Fatalf("half-open probes=%d want 1", got)
+	}
+}
+
+func BenchmarkAccountHealthTryAcquire(b *testing.B) {
+	h := newAccountHealth()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if !h.TryAcquire("benchmark-account") {
+			b.Fatal("healthy account unexpectedly unavailable")
+		}
 	}
 }
 

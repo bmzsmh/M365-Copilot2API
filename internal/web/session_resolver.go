@@ -526,11 +526,14 @@ func (sr *sessionResolver) lookupForTenantLocked(tenant, id string) (sessionBind
 	return sessionBinding{}, false
 }
 
-func (sr *sessionResolver) GetConversation(conversationID string) (sessionBinding, bool) {
+func (sr *sessionResolver) GetConversation(tenant, conversationID string) (sessionBinding, bool) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
+	if tenant == "" {
+		return sessionBinding{}, false
+	}
 	for _, session := range sr.sessions {
-		if session.ConversationID == conversationID {
+		if session.Tenant == tenant && session.ConversationID == conversationID {
 			session.ContextHistory = cloneMessages(session.ContextHistory)
 			return session, true
 		}

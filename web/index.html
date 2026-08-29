@@ -500,6 +500,31 @@ if (response.output_text) {
           <div><h2 class="page-title">Account management</h2><p class="page-sub">Authorize and manage Microsoft accounts</p></div>
         </div>
         <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><span class="card-title">批量创建 Microsoft 365 用户</span><button class="btn btn-sm" type="button" onclick="checkGraphConfig()">检测 Graph 配置</button></div>
+          <div class="card-body">
+            <div id="graphConfigStatus" class="form-hint" style="margin-bottom:12px">正在检查 Graph 管理员授权状态…</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <button class="btn btn-sm primary" type="button" onclick="startGraphAuthorization()">授权 Graph 管理员</button>
+              <button class="btn btn-sm" type="button" onclick="revokeGraphAuthorization()">撤销本地授权</button>
+            </div>
+            <form onsubmit="createGraphUsers(event)">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+                <div class="form-group"><label class="form-label">域名</label><input class="form-input" id="graphDomain" required placeholder="contoso.com"></div>
+                <div class="form-group"><label class="form-label">账号前缀</label><input class="form-input" id="graphPrefix" required value="user"></div>
+                <div class="form-group"><label class="form-label">起始编号</label><input class="form-input" id="graphStart" type="number" min="0" required value="1"></div>
+                <div class="form-group"><label class="form-label">数量</label><input class="form-input" id="graphCount" type="number" min="1" max="20" required value="1"></div>
+                <div class="form-group"><label class="form-label">显示名</label><input class="form-input" id="graphDisplayName" required value="Microsoft 365 User"></div>
+                <div class="form-group"><label class="form-label">usageLocation</label><input class="form-input" id="graphUsageLocation" required maxlength="2" value="US"></div>
+                <div class="form-group"><label class="form-label">SKU ID（可选）</label><input class="form-input" id="graphSkuId" placeholder="许可证 SKU GUID"></div>
+                <div class="form-group"><label class="form-label">初始密码</label><input class="form-input" id="graphInitialPassword" type="password" minlength="8" required autocomplete="new-password"></div>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;margin:4px 0 12px"><input id="graphForcePasswordChange" type="checkbox" checked> 首次登录时强制修改密码</label>
+              <button class="btn primary" id="graphCreateButton" type="submit">批量创建</button>
+            </form>
+            <div id="graphBatchResults" style="margin-top:16px"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
           <div class="card-head"><span class="card-title">Add account</span></div>
           <div class="card-body">
             <div class="onb-steps" style="margin-bottom:16px">
@@ -1097,7 +1122,7 @@ function renderQuotaDashboard(){
     const low=v<=10&&v>0, zero=v===0;
     return `<div style="min-width:148px;flex:1;padding:12px;border-radius:12px;border:1px solid ${zero?'#fecaca':low?'#fde68a':'var(--line)'};background:var(--surface);box-shadow:var(--shadow-sm);animation:slideUp .3s var(--ease-out) both"><div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)"><i data-lucide="${icon}" style="width:12px;height:12px"></i>${esc(label)} · ${esc(k)}</div><div style="font-size:22px;font-weight:700;margin-top:6px;letter-spacing:-0.02em;color:${zero?'var(--danger)':''}">${v}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${hint}</div></div>`;
   }).join('');
-  $('quotaTotals').innerHTML=totalBadges?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">${totalBadges}</div>`:'<span style="font-size:12px;color:var(--muted)">暂无剩余额度数据，等待下一次请求回写</span>';
+  $('quotaTotals').innerHTML=totalBadges?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">${totalBadges}</div>`:'<span style="font-size:12px;color:var(--muted)">暂无上游剩余额度快照，等待下一次请求回写</span>';
   const cooldowns=list.filter(x=>x.cooldownUntil).sort((a,b)=>new Date(a.cooldownUntil)-new Date(b.cooldownUntil));
   const now=Date.now();
   const busy=list.filter(x=> (x.concurrency||0)>0).length;
@@ -1106,7 +1131,7 @@ function renderQuotaDashboard(){
     const until=new Date(x.cooldownUntil).getTime(); const left=Math.max(0,until-now); const mins=Math.ceil(left/60000);
     const pct=Math.max(0,Math.min(100,Math.round((left/(15*60000))*100)));
     const conc=x.concurrency?` · 并发 ${x.concurrency}`:''; const proxy=x.boundProxy?` · 代理 ${esc(x.boundProxy)}`:'';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;margin-top:8px;background:var(--surface)"><span style="font-size:12px;flex:1">${esc(x.email||x.displayName||x.id)} · 冷却中 · ${mins} 分钟后恢复${conc}${proxy}</span><span style="width:90px;height:6px;background:var(--border);border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:${pct}%;background:#d97706"></span></span></div>`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;margin-top:8px;background:var(--surface)"><span style="font-size:12px;flex:1">${esc(x.email||x.displayName||x.id)} · 冷却中 · ${mins} 分钟后再次检测${conc}${proxy}</span><span style="width:90px;height:6px;background:var(--border);border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:${pct}%;background:#d97706"></span></span></div>`;
   }).join(''):`<div style="font-size:12px;color:var(--muted);margin-top:8px">无冷却账号 · 调度可用${busy?` · ${busy} 并发中`:''}${circuit?' · 全局熔断开启':''}</div>`;
   const avail=list.filter(x=>x.status==='online').length;
   const total=list.length;
@@ -1244,6 +1269,56 @@ function bindAccountProxy(id,current){
   const url=prompt('Bind proxy for this account (socks5://, http://, https://). Leave empty to unbind:',current||'');
   if(url===null)return;
   api('/api/accounts/bind-proxy',{method:'POST',body:JSON.stringify({id,proxyUrl:url.trim()})}).then(()=>{showNotice(url.trim()?'Proxy bound':'Proxy unbound','success');loadAccounts();}).catch(e=>showNotice(e.message,'error'));
+}
+
+async function checkGraphConfig(){
+  const status=$('graphConfigStatus');
+  status.textContent='正在检查 Graph 管理员授权状态…';
+  try{
+    const d=await api('/api/admin/graph/authorization/status');
+    status.textContent=d.authorized
+      ?`Graph 管理员已授权${d.organization?'：'+d.organization:''}`
+      :(d.applicationFallbackConfigured?'尚未完成管理员授权，当前可使用应用凭据。':'尚未完成 Graph 管理员授权。');
+  }catch(e){status.textContent=e.message;}
+}
+
+async function startGraphAuthorization(){
+  const status=$('graphConfigStatus');
+  status.textContent='正在启动 Graph 管理员授权…';
+  try{
+    const d=await api('/api/admin/graph/authorization/start',{method:'POST'});
+    window.open(d.url,'graph-authorization','noopener,noreferrer');
+    status.textContent='请在新窗口中完成管理员授权，完成后返回此页面检查状态。';
+  }catch(e){status.textContent=e.message;}
+}
+
+async function revokeGraphAuthorization(){
+  const status=$('graphConfigStatus');
+  status.textContent='正在撤销本地 Graph 授权…';
+  try{
+    const d=await api('/api/admin/graph/authorization/revoke',{method:'POST'});
+    status.textContent=d.consentRevocationRequired?'本地授权已删除；如需彻底撤销，请同时在 Microsoft Entra 中撤销管理员同意。':'本地授权已删除。';
+  }catch(e){status.textContent=e.message;}
+}
+
+async function createGraphUsers(event){
+  event.preventDefault();
+  const button=$('graphCreateButton'),results=$('graphBatchResults');
+  button.disabled=true;
+  results.textContent='正在创建用户…';
+  const body={domain:$('graphDomain').value.trim(),prefix:$('graphPrefix').value.trim(),start:Number($('graphStart').value),count:Number($('graphCount').value),displayName:$('graphDisplayName').value.trim(),usageLocation:$('graphUsageLocation').value.trim(),skuId:$('graphSkuId').value.trim(),initialPassword:$('graphInitialPassword').value,forceChangePasswordNextSignIn:$('graphForcePasswordChange').checked};
+  try{
+    const d=await api('/api/admin/graph/users/batch',{method:'POST',body:JSON.stringify(body)});
+    results.replaceChildren();
+    const note=document.createElement('div');note.className='highlight-box warning';note.textContent='创建成功不代表已加入账号池。每个账号仍需分别完成 Microsoft 登录和 OAuth 授权。';results.append(note);
+    (d.results||[]).forEach(x=>{
+      const row=document.createElement('div');row.className='highlight-box '+(x.success?'success':'warning');row.style.marginTop='8px';
+      const text=document.createElement('span');text.textContent=`${x.userPrincipalName}：${x.success?'创建成功':x.error||'创建失败'}`;row.append(text);
+      if(x.userId){const auth=document.createElement('button');auth.className='btn btn-sm primary';auth.style.marginLeft='8px';auth.textContent='开始 OAuth 授权';auth.onclick=startPKCE;row.append(auth);}
+      results.append(row);
+    });
+  }catch(e){results.textContent=e.message;}
+  finally{button.disabled=false;$('graphInitialPassword').value='';}
 }
 
 async function startPKCE(){

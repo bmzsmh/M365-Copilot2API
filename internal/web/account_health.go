@@ -406,6 +406,7 @@ type accountHealth struct {
 	cooldown               map[string]time.Time
 	authFail               map[string]bool
 	limited                map[string]bool
+	halfOpenProbe          map[string]bool
 	calls                  map[string]uint64
 	imageLimited           map[string]bool
 	imageLimitUntil        map[string]time.Time
@@ -425,6 +426,7 @@ func newAccountHealth() *accountHealth {
 		cooldown:               map[string]time.Time{},
 		authFail:               map[string]bool{},
 		limited:                map[string]bool{},
+		halfOpenProbe:          map[string]bool{},
 		calls:                  map[string]uint64{},
 		imageLimited:           map[string]bool{},
 		imageLimitUntil:        map[string]time.Time{},
@@ -444,16 +446,10 @@ func (h *accountHealth) cleanupExpiredCooldownLocked(accountID string) {
 	if !ok || time.Now().Before(until) {
 		return
 	}
-	wasRateLimited := h.limited[accountID]
 	delete(h.cooldown, accountID)
-	delete(h.limited, accountID)
 	delete(h.authFail, accountID)
 	delete(h.authFailReason, accountID)
 	delete(h.imageLimited, accountID)
-	if wasRateLimited {
-		delete(h.calls, accountID)
-	}
-	delete(h.quotaAttempts, accountID)
 	if t, ok := h.imageGenCooldownUntil[accountID]; ok && time.Now().After(t) {
 		delete(h.imageGenCooldownUntil, accountID)
 	}
@@ -656,6 +652,7 @@ func (h *accountHealth) MarkFailure(accountID string, err error, window time.Dur
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	delete(h.halfOpenProbe, accountID)
 	switch cat {
 	case CategoryAuthExpired401:
 		cooldown := CooldownForCategory(cat, 0, 1)
@@ -770,6 +767,7 @@ func (h *accountHealth) MarkSuccess(accountID string) {
 	delete(h.cooldown, accountID)
 	delete(h.authFail, accountID)
 	delete(h.limited, accountID)
+	delete(h.halfOpenProbe, accountID)
 	delete(h.authFailReason, accountID)
 	delete(h.quotaAttempts, accountID)
 	GlobalCircuitRecord(nil)
@@ -806,7 +804,36 @@ func (h *accountHealth) Available(accountID string) bool {
 	if until, ok := h.cooldown[accountID]; ok && time.Now().Before(until) {
 		return false
 	}
+	return !h.limited[accountID]
+}
+
+func (h *accountHealth) TryAcquire(accountID string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.cleanupExpiredCooldownLocked(accountID)
+	if GlobalCircuitIsOpen() || h.authFail[accountID] {
+		return false
+	}
+	if until, ok := h.cooldown[accountID]; ok && time.Now().Before(until) {
+		return false
+	}
+	if !h.limited[accountID] {
+		return true
+	}
+	if h.halfOpenProbe[accountID] {
+		return false
+	}
+	h.halfOpenProbe[accountID] = true
 	return true
+}
+
+func (h *accountHealth) ReleaseProbe(accountID string) {
+	if h == nil || accountID == "" {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.halfOpenProbe, accountID)
 }
 
 func (h *accountHealth) CooldownUntil(accountID string) (time.Time, bool) {
@@ -941,6 +968,7 @@ func (h *accountHealth) ClearAllCooldowns() {
 	h.cooldown = map[string]time.Time{}
 	h.authFail = map[string]bool{}
 	h.limited = map[string]bool{}
+	h.halfOpenProbe = map[string]bool{}
 	h.calls = map[string]uint64{}
 	h.imageLimited = map[string]bool{}
 	h.imageLimitUntil = map[string]time.Time{}
