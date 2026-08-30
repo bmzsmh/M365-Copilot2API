@@ -29,7 +29,11 @@ type sessionStore struct {
 }
 
 func openSessionStore() *sessionStore {
-	path := os.Getenv("M365_SESSION_CACHE")
+	// 独立于 sessionResolver 的会话存储路径：sessionResolver 使用
+	// M365_SESSION_CACHE（列表格式），sessionStore 使用独立的
+	// M365_SESSION_STORE_CACHE（map[string]conversation 格式），
+	// 避免两个不同 schema 的子系统共用同一路径互相覆盖。
+	path := os.Getenv("M365_SESSION_STORE_CACHE")
 	if path == "" {
 		path = filepath.Join(os.TempDir(), "m365-copilot2api-sessions.json")
 	}

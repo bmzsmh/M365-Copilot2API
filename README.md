@@ -295,6 +295,7 @@ python manage.py stop     # 停止服务
 | `M365_LOG_LEVEL` | `info` | 日志级别 |
 | `M365_ACCOUNT_DEFAULT_CONCURRENCY` | `8` | 每个账号同时进行的上游调用上限；其余账号仍可继续接收请求 |
 | `M365_PUBLIC_IDENTITY_POLICY` | `false` | 公开身份策略总开关；仅在微软反代渠道显式设为 `true` 时启用身份预设及正文、推理、引用和流式清洗 |
+| `M365_MASTER_KEY` | 空 | **必须设置**：加密 `accounts.json` 的主密钥；不设置则静默回退到内置公开 fallback key（不安全）。旧别名 `M365_TOKEN_ENCRYPTION_KEY` 仅在未设置时作为第二回退 |
 
 ### 自动清理
 
@@ -305,7 +306,7 @@ python manage.py stop     # 停止服务
 | `M365_AUTO_CLEANUP` | 开启 | 云端对话自动清理开关（设为 `0` / `false` / `no` / `off` 关闭） |
 | `M365_AUTO_CLEANUP_INTERVAL_MINUTES` | `30` | 扫描周期（分钟） |
 | `M365_AUTO_CLEANUP_MAX_AGE_HOURS` | `2` | 闲置超过即回收（小时） |
-| `M365_AUTO_CLEANUP_KEEP_N` | `100` | 最多保留的云端对话数 |
+| `M365_AUTO_CLEANUP_KEEP_N` | `5` | 最多保留的云端对话数（代码默认值；与本地索引 `M365_CLEANUP_KEEP_N` 一致） |
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
@@ -341,7 +342,8 @@ python manage.py stop     # 停止服务
 | 变量 | 说明 |
 |------|------|
 | `M365_TOKEN_CACHE` | Token 缓存文件（未设置时落到数据目录） |
-| `M365_SESSION_CACHE` | 会话绑定缓存文件（默认 `sessions.json`） |
+| `M365_SESSION_CACHE` | 会话绑定缓存文件（默认 `sessions.json`；由 sessionResolver 以列表格式读写） |
+| `M365_SESSION_STORE_CACHE` | 会话存储文件（默认临时目录；由 sessionStore 以 map 格式读写，未设置时不影响功能） |
 | `M365_CONVERSATION_CACHE` | 本地对话索引（默认 `conversations.json`） |
 | `M365_API_KEYS` | API Key 存储文件 |
 | `M365_USAGE_LOG` | 用量统计日志（默认 `{data_dir}/usage.jsonl`） |
@@ -479,7 +481,7 @@ curl http://127.0.0.1:4141/v1/messages \
 云端对话被视作「缓存条目」：**会话命中 = 刷新存活时间；空闲 = 过期**。后台循环默认每 30 分钟回收：
 
 - 空闲超过 `M365_AUTO_CLEANUP_MAX_AGE_HOURS`（默认 2 小时）的云端对话；
-- 或超出数量上限 `M365_AUTO_CLEANUP_KEEP_N`（默认 100）的最老对话。
+- 或超出数量上限 `M365_AUTO_CLEANUP_KEEP_N`（默认 5）的最老对话。
 
 **以下对话永不回收**：白名单对话、有活跃会话绑定正在引用的对话、最近使用过的用户会话。删除云端对话时会联动清理本地索引与会话绑定，杜绝幽灵会话，防止后续请求复用已删除的对话导致串号或报错。详见 `internal/web/auto_cleanup.go`。
 
@@ -584,7 +586,7 @@ M365-Copilot2API/
 
 **Q1：为什么云端对话越来越多？**
 
-后台每 30 分钟自动清理一次：回收闲置超过 2 小时（`M365_AUTO_CLEANUP_MAX_AGE_HOURS`，默认 2）或超出数量上限（`M365_AUTO_CLEANUP_KEEP_N`，默认 100）的云端对话；被活跃会话引用、白名单中的对话永不回收。调低这两个值可以清理得更激进；彻底关闭用 `M365_AUTO_CLEANUP=0`（不推荐，云端对话会无限膨胀，可能触发风控）。
+后台每 30 分钟自动清理一次：回收闲置超过 2 小时（`M365_AUTO_CLEANUP_MAX_AGE_HOURS`，默认 2）或超出数量上限（`M365_AUTO_CLEANUP_KEEP_N`，默认 5）的云端对话；被活跃会话引用、白名单中的对话永不回收。调低这两个值可以清理得更激进；彻底关闭用 `M365_AUTO_CLEANUP=0`（不推荐，云端对话会无限膨胀，可能触发风控）。
 
 **Q2：如何切换 M365 账号？**
 
