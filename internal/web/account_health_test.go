@@ -325,7 +325,7 @@ func TestNextHealthyAccount(t *testing.T) {
 	s := &Server{tokens: store, accountPool: newAccountHealth()}
 
 	s.accountPool.MarkFailure("u-2", &UpstreamHTTPError{Status: 429}, 10*time.Minute)
-	acc, err := s.nextHealthyAccount("u-1")
+	acc, err := s.nextHealthyAccount("u-1", nil)
 	if err != nil {
 		t.Fatalf("nextHealthyAccount: %v", err)
 	}
@@ -339,8 +339,63 @@ func TestNextHealthyAccount(t *testing.T) {
 	for _, id := range []string{"u-1", "u-2", "u-3"} {
 		s.accountPool.MarkFailure(id, &UpstreamHTTPError{Status: 429}, 10*time.Minute)
 	}
-	if _, err := s.nextHealthyAccount(""); err == nil {
+	if _, err := s.nextHealthyAccount("", nil); err == nil {
 		t.Fatal("nextHealthyAccount must fail when no healthy account remains")
+	}
+}
+
+func TestNextHealthyAccountStaysWithinBoundAccounts(t *testing.T) {
+	store := testAccountFiles(t)
+	s := &Server{tokens: store, accountPool: newAccountHealth()}
+
+	s.accountPool.MarkFailure("u-1", &UpstreamHTTPError{Status: 429}, 10*time.Minute)
+	acc, err := s.nextHealthyAccount("u-1", []string{"u-1", "u-2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acc.ID != "u-2" {
+		t.Fatalf("bound failover account=%s want u-2", acc.ID)
+	}
+
+	s.accountPool.MarkFailure("u-2", &UpstreamHTTPError{Status: 401}, 10*time.Minute)
+	if _, err := s.nextHealthyAccount("u-1", []string{"u-1", "u-2"}); err == nil || err.Error() != "no bound account available" {
+		t.Fatalf("error=%v want no bound account available", err)
+	}
+}
+
+func TestChatStreamRejectsExplicitUnboundAccount(t *testing.T) {
+	const rawKey = "bound-stream-key"
+	store := testAccountFiles(t)
+	keys := newAPIKeyStore(filepath.Join(t.TempDir(), "api-keys.json"))
+	keys.Keys = []apiKeyRecord{{Hash: keyHash(rawKey), AccountIDs: []string{"u-2"}}}
+	s := &Server{tokens: store, apiKeys: keys, accountPool: newAccountHealth()}
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/chat/stream", strings.NewReader(`{"accountId":"u-1","message":"hello"}`))
+	r.Header.Set("Authorization", "Bearer "+rawKey)
+	s.chatStream(w, r)
+
+	if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "upstream request failed") {
+		t.Fatalf("status=%d body=%s want masked unbound-account rejection", w.Code, w.Body.String())
+	}
+}
+
+func TestChatStreamDoesNotFallBackOutsideUnavailableBoundAccounts(t *testing.T) {
+	const rawKey = "unavailable-bound-stream-key"
+	store := testAccountFiles(t)
+	keys := newAPIKeyStore(filepath.Join(t.TempDir(), "api-keys.json"))
+	keys.Keys = []apiKeyRecord{{Hash: keyHash(rawKey), AccountIDs: []string{"u-1", "u-2"}}}
+	s := &Server{tokens: store, apiKeys: keys, accountPool: newAccountHealth()}
+	s.accountPool.MarkFailure("u-1", &UpstreamHTTPError{Status: http.StatusTooManyRequests}, time.Minute)
+	s.accountPool.MarkFailure("u-2", &UpstreamHTTPError{Status: http.StatusUnauthorized}, time.Minute)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/chat/stream", strings.NewReader(`{"message":"hello"}`))
+	r.Header.Set("Authorization", "Bearer "+rawKey)
+	s.chatStream(w, r)
+
+	if w.Code != http.StatusBadGateway || !strings.Contains(w.Body.String(), "upstream request failed") {
+		t.Fatalf("status=%d body=%s want masked bound-account exhaustion error", w.Code, w.Body.String())
 	}
 }
 
