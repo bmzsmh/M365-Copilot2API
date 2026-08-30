@@ -416,6 +416,8 @@ type accountHealth struct {
 	lastMeterError         map[string]string
 	lastMeterAccess        map[string]bool
 	remainingAllowance     map[string]map[string]int
+	remainingUpdatedAt     map[string]time.Time
+	remainingStale         map[string]bool
 	authFailReason         map[string]string
 	quotaAttempts          map[string]int
 }
@@ -436,6 +438,8 @@ func newAccountHealth() *accountHealth {
 		lastMeterError:         map[string]string{},
 		lastMeterAccess:        map[string]bool{},
 		remainingAllowance:     map[string]map[string]int{},
+		remainingUpdatedAt:     map[string]time.Time{},
+		remainingStale:         map[string]bool{},
 		authFailReason:         map[string]string{},
 		quotaAttempts:          map[string]int{},
 	}
@@ -577,7 +581,9 @@ func (h *accountHealth) UpdateMetering(accountID, meterError string, hasAccess b
 	h.lastMeterError[accountID] = meterError
 	h.lastMeterAccess[accountID] = hasAccess
 	if len(remaining) == 0 {
-		delete(h.remainingAllowance, accountID)
+		if !hasAccess {
+			h.remainingStale[accountID] = true
+		}
 		return
 	}
 	copyRemaining := make(map[string]int, len(remaining))
@@ -585,6 +591,14 @@ func (h *accountHealth) UpdateMetering(accountID, meterError string, hasAccess b
 		copyRemaining[capability] = allowance
 	}
 	h.remainingAllowance[accountID] = copyRemaining
+	h.remainingUpdatedAt[accountID] = time.Now()
+	h.remainingStale[accountID] = !hasAccess
+}
+
+func (h *accountHealth) markRemainingStaleLocked(accountID string) {
+	if len(h.remainingAllowance[accountID]) > 0 {
+		h.remainingStale[accountID] = true
+	}
 }
 
 func (h *accountHealth) GetMetering(accountID string) (string, bool, map[string]int) {
@@ -644,15 +658,14 @@ func (h *accountHealth) MarkFailure(accountID string, err error, window time.Dur
 	if cat == CategoryClientCanceled {
 		return
 	}
-	if cat == CategoryGlobalUnavailable {
-		h.mu.Lock()
-		h.cooldown[accountID] = time.Now().Add(CooldownForCategory(cat, 0, 1))
-		h.mu.Unlock()
-		return
-	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.markRemainingStaleLocked(accountID)
 	delete(h.halfOpenProbe, accountID)
+	if cat == CategoryGlobalUnavailable {
+		h.cooldown[accountID] = time.Now().Add(CooldownForCategory(cat, 0, 1))
+		return
+	}
 	switch cat {
 	case CategoryAuthExpired401:
 		cooldown := CooldownForCategory(cat, 0, 1)
@@ -944,6 +957,8 @@ func (h *accountHealth) Snapshot() map[string]map[string]any {
 				copied[capability] = allowance
 			}
 			m["remainingAllowance"] = copied
+			m["remainingAllowanceUpdatedAt"] = h.remainingUpdatedAt[id]
+			m["remainingAllowanceStale"] = h.remainingStale[id]
 		}
 		if r := h.authFailReason[id]; r != "" {
 			m["authFailReason"] = r
@@ -978,6 +993,8 @@ func (h *accountHealth) ClearAllCooldowns() {
 	h.lastMeterError = map[string]string{}
 	h.lastMeterAccess = map[string]bool{}
 	h.remainingAllowance = map[string]map[string]int{}
+	h.remainingUpdatedAt = map[string]time.Time{}
+	h.remainingStale = map[string]bool{}
 	h.authFailReason = map[string]string{}
 	h.quotaAttempts = map[string]int{}
 	ResetGlobalCircuit()

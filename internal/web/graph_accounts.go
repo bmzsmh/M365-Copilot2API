@@ -25,11 +25,81 @@ var (
 )
 
 type graphConfig struct {
-	TenantID     string
-	ClientID     string
-	ClientSecret string
-	BaseURL      string
-	TokenURL     string
+	TenantID      string
+	ClientID      string
+	ClientSecret  string
+	BaseURL       string
+	TokenURL      string
+	Authorization *graphAuthorizationData
+}
+
+type graphReadiness struct {
+	Ready                         bool     `json:"ready"`
+	Authorized                    bool     `json:"authorized"`
+	MasterKeyConfigured           bool     `json:"masterKeyConfigured"`
+	ClientConfigured              bool     `json:"clientConfigured"`
+	ApplicationFallbackConfigured bool     `json:"applicationFallbackConfigured"`
+	PermissionType                string   `json:"permissionType"`
+	Message                       string   `json:"message"`
+	MissingSteps                  []string `json:"missingSteps,omitempty"`
+}
+
+func graphAuthorizationHasRequiredScopes(scopes string) bool {
+	required := []string{"User.ReadWrite.All", "Organization.Read.All", "LicenseAssignment.ReadWrite.All"}
+	granted := strings.Fields(scopes)
+	for _, requirement := range required {
+		found := false
+		for _, scope := range granted {
+			if strings.EqualFold(scope, requirement) || strings.HasSuffix(strings.ToLower(scope), "/"+strings.ToLower(requirement)) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func graphReadinessStatus() graphReadiness {
+	status := graphReadiness{
+		MasterKeyConfigured: auth.HasMasterKey(),
+		ClientConfigured:    strings.TrimSpace(os.Getenv("M365_GRAPH_CLIENT_ID")) != "",
+		PermissionType:      "none",
+	}
+	if authorization, err := loadGraphAuthorization(); err == nil {
+		status.Authorized = true
+		status.PermissionType = "delegated"
+		if status.MasterKeyConfigured && graphAuthorizationHasRequiredScopes(authorization.Scopes) {
+			status.Ready = true
+			status.Message = "管理员连接已就绪，可以批量创建用户。"
+			return status
+		}
+	}
+	tenant := strings.TrimSpace(os.Getenv("M365_GRAPH_TENANT_ID"))
+	client := strings.TrimSpace(os.Getenv("M365_GRAPH_CLIENT_ID"))
+	secret := strings.TrimSpace(os.Getenv("M365_GRAPH_CLIENT_SECRET"))
+	status.ApplicationFallbackConfigured = tenant != "" && client != "" && secret != ""
+	if status.ApplicationFallbackConfigured {
+		status.Ready = true
+		status.PermissionType = "application"
+		status.Message = "备用管理员连接已就绪，可以批量创建用户。"
+		return status
+	}
+	if status.Authorized {
+		if !status.MasterKeyConfigured {
+			status.MissingSteps = []string{"请系统管理员完成安全存储设置，或启用备用管理员连接"}
+			status.Message = "已保存的管理员连接暂时不可用。下一步：请系统管理员完成安全存储设置，或启用备用管理员连接。"
+		} else {
+			status.MissingSteps = []string{"重新连接管理员并同意创建用户和分配许可证所需权限"}
+			status.Message = "管理员连接权限不足。下一步：点击“重新连接管理员”，并同意创建用户和分配许可证所需权限。"
+		}
+	} else {
+		status.MissingSteps = []string{"请系统管理员完成安全存储设置并连接 Microsoft 管理员"}
+		status.Message = "尚未完成管理员连接。下一步：请系统管理员完成安全存储设置，然后点击“连接 Microsoft 管理员”。"
+	}
+	return status
 }
 
 type graphBatchRequest struct {
@@ -64,16 +134,21 @@ func loadGraphConfig() (graphConfig, error) {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://graph.microsoft.com"
 	}
-	if cfg.ClientID == "" {
-		return graphConfig{}, fmt.Errorf("Microsoft Graph is not configured")
+	if authorization, err := loadGraphAuthorization(); err == nil && auth.HasMasterKey() && graphAuthorizationHasRequiredScopes(authorization.Scopes) {
+		cfg.ClientID = authorization.ClientID
+		cfg.ClientSecret = ""
+		cfg.TenantID = authorization.TenantID
+		cfg.Authorization = &authorization
+	} else if cfg.ClientID == "" {
+		return graphConfig{}, fmt.Errorf("管理员连接尚未就绪")
 	}
 	cfg.TokenURL = strings.TrimSpace(os.Getenv("M365_GRAPH_TOKEN_URL"))
 	if cfg.TokenURL == "" {
 		tenant := cfg.TenantID
-		if cfg.ClientSecret == "" {
+		if cfg.Authorization != nil {
 			tenant = "organizations"
 		} else if tenant == "" {
-			return graphConfig{}, fmt.Errorf("Microsoft Graph tenant ID is required for application credentials")
+			return graphConfig{}, fmt.Errorf("备用管理员连接尚未配置完整")
 		}
 		cfg.TokenURL = "https://login.microsoftonline.com/" + url.PathEscape(tenant) + "/oauth2/v2.0/token"
 	}
@@ -81,11 +156,8 @@ func loadGraphConfig() (graphConfig, error) {
 }
 
 func graphAccessToken(ctx context.Context, cfg graphConfig) (string, error) {
-	if cfg.ClientSecret == "" {
-		stored, err := loadGraphAuthorization()
-		if err != nil {
-			return "", fmt.Errorf("Microsoft Graph administrator authorization is required")
-		}
+	if cfg.Authorization != nil {
+		stored := *cfg.Authorization
 		refreshToken, err := auth.DecryptSecret(stored.EncryptedRefreshToken)
 		if err != nil {
 			return "", fmt.Errorf("could not read Microsoft Graph administrator authorization")
@@ -110,6 +182,9 @@ func graphAccessToken(ctx context.Context, cfg graphConfig) (string, error) {
 			return "", err
 		}
 		return token.AccessToken, nil
+	}
+	if cfg.ClientSecret == "" {
+		return "", fmt.Errorf("管理员连接尚未就绪")
 	}
 	form := url.Values{
 		"client_id":     {cfg.ClientID},
@@ -263,6 +338,12 @@ func (s *Server) graphBatchUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := validateGraphBatchRequest(&body); err != nil {
 		writeOpenAIError(w, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return
+	}
+	readiness := graphReadinessStatus()
+	if !readiness.Ready {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		jsonOut(w, map[string]any{"error": map[string]any{"type": "configuration_error", "message": readiness.Message, "readiness": readiness}})
 		return
 	}
 	cfg, err := loadGraphConfig()

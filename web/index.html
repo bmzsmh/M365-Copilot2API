@@ -499,31 +499,40 @@ if (response.output_text) {
         <div class="page-head">
           <div><h2 class="page-title">Account management</h2><p class="page-sub">Authorize and manage Microsoft accounts</p></div>
         </div>
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-head"><span class="card-title">批量创建 Microsoft 365 用户</span><button class="btn btn-sm" type="button" onclick="checkGraphConfig()">检测 Graph 配置</button></div>
+        <!-- Microsoft Graph batch user creation is temporarily disabled. Keep its implementation out of the loaded page until it is restored. -->
+        <template id="disabledGraphBatchUserCreation">
+        <div class="card" style="margin-bottom:16px;display:none" aria-hidden="true">
+          <div class="card-head"><span class="card-title">批量创建 Microsoft 365 用户</span><button class="btn btn-sm" type="button" onclick="checkGraphConfig()">检查准备状态</button></div>
           <div class="card-body">
-            <div id="graphConfigStatus" class="form-hint" style="margin-bottom:12px">正在检查 Graph 管理员授权状态…</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-              <button class="btn btn-sm primary" type="button" onclick="startGraphAuthorization()">授权 Graph 管理员</button>
-              <button class="btn btn-sm" type="button" onclick="revokeGraphAuthorization()">撤销本地授权</button>
+            <div class="onb-steps" style="margin-bottom:16px">
+              <div class="onb-step"><span class="onb-step-num">1</span><span class="onb-step-text"><b>准备安全存储</b><p>用于安全保存管理员连接信息。</p></span></div>
+              <div class="onb-step"><span class="onb-step-num">2</span><span class="onb-step-text"><b>连接 Microsoft 管理员</b><p>使用有权创建用户的管理员账号完成连接。</p></span></div>
+              <div class="onb-step"><span class="onb-step-num">3</span><span class="onb-step-text"><b>创建账号</b><p>先创建测试账号，确认无误后再批量创建。</p></span></div>
             </div>
+            <div id="graphConfigStatus" class="form-hint" style="margin-bottom:12px">正在检查管理员连接状态…</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <button class="btn btn-sm primary" id="graphAuthorizeButton" type="button" onclick="startGraphAuthorization()">连接 Microsoft 管理员</button>
+              <button class="btn btn-sm" type="button" onclick="revokeGraphAuthorization()">断开本地连接</button>
+            </div>
+            <details id="graphDiagnostics" style="margin-bottom:16px"><summary>高级诊断</summary><pre id="graphDiagnosticText" style="white-space:pre-wrap;margin-top:8px"></pre></details>
             <form onsubmit="createGraphUsers(event)">
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-                <div class="form-group"><label class="form-label">域名</label><input class="form-input" id="graphDomain" required placeholder="contoso.com"></div>
+                <div class="form-group"><label class="form-label">账号域名</label><input class="form-input" id="graphDomain" required placeholder="contoso.onmicrosoft.com"><div class="form-hint">填写 Microsoft 365 中已验证的域名，例如 contoso.onmicrosoft.com 或企业已验证域名。不能填写网站地址、https://、邮箱全址或随意编造的域名。</div></div>
                 <div class="form-group"><label class="form-label">账号前缀</label><input class="form-input" id="graphPrefix" required value="user"></div>
                 <div class="form-group"><label class="form-label">起始编号</label><input class="form-input" id="graphStart" type="number" min="0" required value="1"></div>
                 <div class="form-group"><label class="form-label">数量</label><input class="form-input" id="graphCount" type="number" min="1" max="20" required value="1"></div>
                 <div class="form-group"><label class="form-label">显示名</label><input class="form-input" id="graphDisplayName" required value="Microsoft 365 User"></div>
-                <div class="form-group"><label class="form-label">usageLocation</label><input class="form-input" id="graphUsageLocation" required maxlength="2" value="US"></div>
-                <div class="form-group"><label class="form-label">SKU ID（可选）</label><input class="form-input" id="graphSkuId" placeholder="许可证 SKU GUID"></div>
-                <div class="form-group"><label class="form-label">初始密码</label><input class="form-input" id="graphInitialPassword" type="password" minlength="8" required autocomplete="new-password"></div>
+                <div class="form-group"><label class="form-label">使用地区</label><input class="form-input" id="graphUsageLocation" required maxlength="2" value="US"><div class="form-hint">账号使用地区的两位代码，例如 US。</div></div>
+                <div class="form-group"><label class="form-label">许可证（可选）</label><div class="form-hint">留空表示只创建用户、不分配许可证。可分配 Microsoft 365 Copilot 等已购买许可证。</div><details style="margin-top:8px"><summary>高级：填写许可证内部编号</summary><input class="form-input" id="graphSkuId" placeholder="普通用户无需填写" style="margin-top:8px"><div class="form-hint">这是 Microsoft 许可证的内部编号，仅在已知准确编号时填写。</div></details></div>
+                <div class="form-group"><label class="form-label">初始密码</label><div style="display:flex;gap:8px"><input class="form-input" id="graphInitialPassword" type="password" minlength="8" required autocomplete="new-password"><button class="btn btn-sm" type="button" onclick="generateGraphPassword()">安全生成</button></div><div class="form-hint">这是新建子账号首次登录 Microsoft 365 使用的临时密码，不是管理员密码，也不是本系统登录密码。密码仅在当前输入框中安全展示，不会写入日志、网址或持久化文件。默认不要求首次登录修改；批量账号共用同一密码会增加泄露风险。</div></div>
               </div>
-              <label style="display:flex;align-items:center;gap:8px;margin:4px 0 12px"><input id="graphForcePasswordChange" type="checkbox" checked> 首次登录时强制修改密码</label>
+              <label style="display:flex;align-items:center;gap:8px;margin:4px 0 12px"><input id="graphForcePasswordChange" type="checkbox"> 首次登录时强制修改密码</label>
               <button class="btn primary" id="graphCreateButton" type="submit">批量创建</button>
             </form>
             <div id="graphBatchResults" style="margin-top:16px"></div>
           </div>
         </div>
+        </template>
         <div class="card" style="margin-bottom:16px">
           <div class="card-head"><span class="card-title">Add account</span></div>
           <div class="card-body">
@@ -682,6 +691,11 @@ if (response.output_text) {
     <div class="form-group">
       <label class="form-label">Name</label>
       <input class="form-input" id="editKeyName">
+    </div>
+    <div class="form-group">
+      <label class="form-label">绑定出口账号</label>
+      <div id="editKeyAccounts" style="display:grid;gap:8px;max-height:240px;overflow:auto"></div>
+      <div class="form-hint">可绑定一个或多个账号。未选择时，该密钥继续在全部健康且允许调度的账号之间负载均衡。</div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeEditKeyModal()">Cancel</button>
@@ -1108,7 +1122,7 @@ function renderQuotaDashboard(){
   if(!list.length){ card.style.display='none'; return; }
   card.style.display='';
   const totals={}; let withData=0;
-  list.forEach(x=>{
+  list.filter(x=>x.status==='online'&&!x.rateLimited&&x.meterHasAccess!==false&&!x.remainingAllowanceStale).forEach(x=>{
     const r=x.remainingAllowance||{};
     if(Object.keys(r).length) withData++;
     Object.entries(r).forEach(([k,v])=>{ totals[k]=(totals[k]||0)+(Number(v)||0); });
@@ -1133,7 +1147,7 @@ function renderQuotaDashboard(){
     const conc=x.concurrency?` · 并发 ${x.concurrency}`:''; const proxy=x.boundProxy?` · 代理 ${esc(x.boundProxy)}`:'';
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;margin-top:8px;background:var(--surface)"><span style="font-size:12px;flex:1">${esc(x.email||x.displayName||x.id)} · 冷却中 · ${mins} 分钟后再次检测${conc}${proxy}</span><span style="width:90px;height:6px;background:var(--border);border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:${pct}%;background:#d97706"></span></span></div>`;
   }).join(''):`<div style="font-size:12px;color:var(--muted);margin-top:8px">无冷却账号 · 调度可用${busy?` · ${busy} 并发中`:''}${circuit?' · 全局熔断开启':''}</div>`;
-  const avail=list.filter(x=>x.status==='online').length;
+  const avail=list.filter(x=>x.status==='online'&&!x.rateLimited&&x.meterHasAccess!==false&&!x.remainingAllowanceStale).length;
   const total=list.length;
   const over=list.filter(x=>x.meterError).length;
   $('quotaSub').textContent=`${withData}/${total} 已同步额度 · ${avail} 可调度${busy?` · ${busy} 并发`:''}` + (over?` · ${over} 限流`:'') + (circuit?' · 熔断':'');
@@ -1159,6 +1173,7 @@ let _accountsCache=[],_accountFilter='all';
 function setAccountFilter(f){_accountFilter=f;document.querySelectorAll('#accountFilter button').forEach(b=>b.classList.toggle('active',b.dataset.f===f));renderAccounts();}
 function accountQuotaDetails(x){
   const remaining=x.remainingAllowance||{};
+  const unavailable=x.status==='cooldown'||x.rateLimited||x.meterHasAccess===false||x.remainingAllowanceStale;
   const preferred=['LLMOnly','ImageGeneration','ClaudeOpusQuery','ClaudeOpusQueryDaily','ArtifactGeneration','WXPAgentMode'];
   let order=[...preferred.filter(k=>k in remaining),...Object.keys(remaining).filter(k=>!preferred.includes(k)).sort()];
   order=order.filter(k=> remaining[k]!==0 || ['LLMOnly','ImageGeneration','ClaudeOpusQuery'].includes(k));
@@ -1179,9 +1194,11 @@ function accountQuotaDetails(x){
   } else if (x.meterError||badges) {
     conv=`<div style="font-size:11px;color:var(--muted);margin-top:6px">对话水位暂无数据（等待下一次请求回写）</div>`;
   }
-  const meter=x.meterError?`<div style="margin-top:6px;padding:6px 8px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:11px">限流原因：${esc(x.meterError)}${x.meterHasAccess===false?' · 已拒绝访问':''}</div>`:'';
+  const reason=x.status==='cooldown'?'当前冷却中':x.rateLimited?'当前限流':x.meterHasAccess===false?'当前无访问权限':x.remainingAllowanceStale?'当前快照已过期':'';
+  const meter=reason||x.meterError?`<div style="margin-top:6px;padding:6px 8px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:11px">${esc(reason||x.meterError)}${reason&&x.meterError?' · '+esc(x.meterError):''}</div>`:'';
+  const snapshot=badges?`<div style="font-size:11px;color:var(--muted);margin-top:6px">${unavailable?'上游历史快照':'上游额度快照'}${x.remainingAllowanceUpdatedAt?' · '+new Date(x.remainingAllowanceUpdatedAt).toLocaleString():''}</div>`:'';
   if(!badges&&!meter&&!conv) return `<div style="font-size:11px;color:var(--muted);margin-top:6px">额度数据等待下一次成功请求后展示</div>`;
-  return `<div style="margin-top:6px">${meter}${conv}${badges?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${badges}</div>`:''}</div>`;
+  return `<div style="margin-top:6px">${meter}${snapshot}${conv}${badges?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;opacity:${unavailable?'.65':'1'}">${badges}</div>`:''}</div>`;
 }
 function renderAccounts(){
   const q=($('accountSearch').value||'').trim().toLowerCase();
@@ -1226,7 +1243,13 @@ let _accountsTimer=null;
 async function loadAccounts(){
   try{
     const d=await api('/api/accounts');
-    _accountsCache=d.accounts||[];
+    const health=d.health||{};
+    _accountsCache=(d.accounts||[]).map(account=>Object.assign({},health[account.id]||{},account,{
+      remainingAllowance:(health[account.id]||{}).remainingAllowance||account.remainingAllowance,
+      remainingAllowanceUpdatedAt:(health[account.id]||{}).remainingAllowanceUpdatedAt,
+      remainingAllowanceStale:Boolean((health[account.id]||{}).remainingAllowanceStale),
+      meterHasAccess:(health[account.id]||{}).hasAccess??account.meterHasAccess
+    }));
     renderAccounts();
     renderQuotaDashboard();
     const limited=_accountsCache.filter(x=>x.rateLimited||x.status==='cooldown');
@@ -1271,25 +1294,39 @@ function bindAccountProxy(id,current){
   api('/api/accounts/bind-proxy',{method:'POST',body:JSON.stringify({id,proxyUrl:url.trim()})}).then(()=>{showNotice(url.trim()?'Proxy bound':'Proxy unbound','success');loadAccounts();}).catch(e=>showNotice(e.message,'error'));
 }
 
+/* Microsoft Graph batch user creation is temporarily disabled. Keep the implementation dormant so page loading creates no Graph handlers, requests, timers, logs, or other runtime work. */
+const disabledGraphBatchUserCreationImplementation=()=>{
 async function checkGraphConfig(){
   const status=$('graphConfigStatus');
-  status.textContent='正在检查 Graph 管理员授权状态…';
+  const createButton=$('graphCreateButton');
+  createButton.disabled=true;
+  status.textContent='正在检查管理员连接状态…';
   try{
     const d=await api('/api/admin/graph/authorization/status');
-    status.textContent=d.authorized
-      ?`Graph 管理员已授权${d.organization?'：'+d.organization:''}`
-      :(d.applicationFallbackConfigured?'尚未完成管理员授权，当前可使用应用凭据。':'尚未完成 Graph 管理员授权。');
-  }catch(e){status.textContent=e.message;}
+    $('graphDiagnosticText').textContent=JSON.stringify(d,null,2);
+    $('graphAuthorizeButton').disabled=!d.masterKeyConfigured||!d.clientConfigured;
+    createButton.disabled=!d.ready;
+    status.textContent=d.message||'Graph 准备状态未知，请重新检查。';
+    return d;
+  }catch(e){createButton.disabled=true;status.textContent='状态检查失败，请确认开发服务正在运行后重试。';$('graphDiagnosticText').textContent=e.message;return null;}
 }
 
 async function startGraphAuthorization(){
   const status=$('graphConfigStatus');
-  status.textContent='正在启动 Graph 管理员授权…';
+  const readiness=await checkGraphConfig();
+  if(!readiness||!readiness.masterKeyConfigured||!readiness.clientConfigured)return;
+  status.textContent='正在打开 Microsoft 管理员登录页面…';
   try{
     const d=await api('/api/admin/graph/authorization/start',{method:'POST'});
     window.open(d.url,'graph-authorization','noopener,noreferrer');
     status.textContent='请在新窗口中完成管理员授权，完成后返回此页面检查状态。';
-  }catch(e){status.textContent=e.message;}
+  }catch(e){status.textContent='无法开始管理员连接，请按上方提示检查准备步骤后重试。';$('graphDiagnosticText').textContent=e.message;}
+}
+
+function generateGraphPassword(){
+  const bytes=new Uint32Array(4);crypto.getRandomValues(bytes);
+  $('graphInitialPassword').value=`M${bytes[0].toString(36)}!${bytes[1].toString(36)}aA${bytes[2].toString(36)}#${bytes[3].toString(36)}`;
+  $('graphInitialPassword').type='text';
 }
 
 async function revokeGraphAuthorization(){
@@ -1304,7 +1341,20 @@ async function revokeGraphAuthorization(){
 async function createGraphUsers(event){
   event.preventDefault();
   const button=$('graphCreateButton'),results=$('graphBatchResults');
+  if(button.dataset.busy==='1')return;
+  button.dataset.busy='1';
   button.disabled=true;
+  button.textContent='正在检查…';
+  results.textContent='正在检查创建条件…';
+  const readiness=await checkGraphConfig();
+  if(!readiness||!readiness.ready){
+    results.textContent=readiness&&readiness.message?readiness.message:'当前无法创建用户，请先按管理员连接区域中的提示完成配置。';
+    button.dataset.busy='0';
+    button.textContent='批量创建';
+    return;
+  }
+  button.disabled=true;
+  button.textContent='正在创建…';
   results.textContent='正在创建用户…';
   const body={domain:$('graphDomain').value.trim(),prefix:$('graphPrefix').value.trim(),start:Number($('graphStart').value),count:Number($('graphCount').value),displayName:$('graphDisplayName').value.trim(),usageLocation:$('graphUsageLocation').value.trim(),skuId:$('graphSkuId').value.trim(),initialPassword:$('graphInitialPassword').value,forceChangePasswordNextSignIn:$('graphForcePasswordChange').checked};
   try{
@@ -1317,9 +1367,10 @@ async function createGraphUsers(event){
       if(x.userId){const auth=document.createElement('button');auth.className='btn btn-sm primary';auth.style.marginLeft='8px';auth.textContent='开始 OAuth 授权';auth.onclick=startPKCE;row.append(auth);}
       results.append(row);
     });
-  }catch(e){results.textContent=e.message;}
-  finally{button.disabled=false;$('graphInitialPassword').value='';}
+  }catch(e){results.textContent='批量创建失败，请重新检查管理员授权或应用凭据。技术详情请查看高级诊断。';$('graphDiagnosticText').textContent=e.message;}
+  finally{$('graphInitialPassword').value='';button.dataset.busy='0';button.textContent='批量创建';await checkGraphConfig();}
 }
+};
 
 async function startPKCE(){
   try{
@@ -1369,7 +1420,7 @@ async function loadKeys(){
       tr.querySelector('.key-created').textContent=new Date(x.createdAt).toLocaleString();
       tr.querySelector('.key-last-used').textContent=x.lastUsedAt?new Date(x.lastUsedAt).toLocaleString():'-';
       tr.querySelector('[data-key-action="use"]').addEventListener('click',()=>openUseKey(x.id));
-      tr.querySelector('[data-key-action="edit"]').addEventListener('click',()=>editKey(x.id,x.name));
+      tr.querySelector('[data-key-action="edit"]').addEventListener('click',()=>editKey(x.id,x.name,x.accountIds||[]));
       tr.querySelector('[data-key-action="toggle"]').addEventListener('click',()=>toggleKey(x.id,x.revoked));
       tr.querySelector('[data-key-action="delete"]').addEventListener('click',()=>revokeKey(x.id));
       rows.append(tr);
@@ -1378,12 +1429,38 @@ async function loadKeys(){
 }
 
 let editKeyId=null;
-function editKey(id,name){editKeyId=id;$('editKeyName').value=name;$('editKeyModal').classList.add('open');setTimeout(()=>$('editKeyName').focus(),50);}
+function editKey(id,name,accountIds){
+  editKeyId=id;
+  $('editKeyName').value=name;
+  const selected=new Set(accountIds||[]),container=$('editKeyAccounts');
+  container.replaceChildren();
+  if(!_accountsCache.length){
+    const hint=document.createElement('div');
+    hint.className='form-hint';
+    hint.textContent='当前没有可绑定的出口账号。';
+    container.append(hint);
+  }
+  _accountsCache.forEach(account=>{
+    const label=document.createElement('label');
+    label.style.cssText='display:flex;align-items:center;gap:8px';
+    const input=document.createElement('input');
+    input.type='checkbox';
+    input.value=account.id;
+    input.checked=selected.has(account.id);
+    const text=document.createElement('span');
+    text.textContent=account.email||account.id;
+    label.append(input,text);
+    container.append(label);
+  });
+  $('editKeyModal').classList.add('open');
+  setTimeout(()=>$('editKeyName').focus(),50);
+}
 function closeEditKeyModal(){$('editKeyModal').classList.remove('open');editKeyId=null;}
 async function saveEditKey(){
   const name=$('editKeyName').value.trim();
   if(!name)return showNotice('名称不能为空','error');
-  try{await api('/api/admin/keys',{method:'PUT',body:JSON.stringify({id:editKeyId,name})});closeEditKeyModal();showNotice('已更新','success');loadKeys();}
+  const accountIds=[...$('editKeyAccounts').querySelectorAll('input:checked')].map(input=>input.value);
+  try{await api('/api/admin/keys',{method:'PUT',body:JSON.stringify({id:editKeyId,name,accountIds})});closeEditKeyModal();showNotice('已更新','success');loadKeys();}
   catch(e){showNotice(e.message,'error');}
 }
 async function toggleKey(id,revoked){

@@ -54,6 +54,28 @@ Status legend: `[x]` verified, `[ ]` not verified, `[-]` blocked, `[c]` canceled
 - [ ] Make only a minimal optimization if measurements identify a bottleneck.
 - [x] Do not introduce Radix Tree, HTTP/3, a custom HTTP stack, `sync.Pool`, `unsafe`, or sensitive-slice pooling without evidence.
 
+## Responses Protocol Compatibility
+
+- [ ] P0 trace Responses request conversion and upstream event sources without altering existing or unknown work.
+- [ ] P0 support `instructions`, `max_output_tokens`, `parallel_tool_calls`, `tool_choice`, `reasoning`, `include`, `temperature`, `text`, `service_tier`, `context_management`, and `previous_response_id`; reject unsafe unsupported parameters with `unsupported_parameter`.
+- [ ] P0 preserve per-turn highest-priority instructions without inheriting stale instructions through `previous_response_id`.
+- [ ] P0 fix `function_call_output`/`call_id`, `response.failed`, premature stream disconnects, UTF-8 chunk corruption, path/link damage, and deterministic dual-source event deduplication/completion.
+- [ ] P0 use only the reverse-engineered official MCP/native tool interface while preserving third-party high-priority instructions, model context, and tool-result correlation.
+- [ ] P0 implement a tool-state ledger for in-progress, awaiting-result, completed, and final-response states; prevent fabricated completion and premature summaries.
+
+## Administration And Security
+
+- [ ] P1 implement API-key-to-account bindings, persistence, scheduling filters, failover, WebUI management, and unbound-key healthy-account load balancing.
+- [ ] P1 expose existing settings safely with encrypted persistence, masked secrets, administrator authorization, and CSRF protection.
+- [ ] P1 complete batch Microsoft 365 user UX, encrypted initial-password storage, administrator-only view/export, secure clearing, auditing, license availability display, and actionable master-key initialization.
+- [ ] P1 synchronize `web/index.html` and `internal/web/web/index.html` without overwriting unknown changes.
+- [ ] P1 complete usage passthrough and dashboard accounting semantics.
+
+## Required Regression Coverage
+
+- [ ] Add tests for request semantics, unsupported parameters, per-turn instructions, previous response handling, dual-source tool events, UTF-8 chunks, paths/links, call IDs, failures, and tool-loop completion.
+- [ ] Add tests for API-key account bindings, settings persistence, password encryption, authorization, CSRF, and byte-identical frontend copies.
+
 ## Quality Gates
 
 - [x] Run `gofmt` on changed Go files, including the added connection-pool steady-state test.
@@ -65,6 +87,10 @@ Status legend: `[x]` verified, `[ ]` not verified, `[-]` blocked, `[c]` canceled
 - [-] Complete independent security, concurrency-risk, protocol, cross-request leakage, denial-of-service, and authorization-boundary review. Independent read-only Agent A is unavailable in the current tool environment, so no independent review conclusion is claimed.
 - [-] Complete independent performance-evidence, over-design, test-realism, WebUI UX, and i18n review. Independent read-only Agent B is unavailable in the current tool environment, so no independent review conclusion is claimed.
 - [ ] Fix every Critical and High review finding, then rerun every gate.
+- [ ] Run targeted tests at least 20 consecutive times with `GOROOT=D:\Go` and the matching Go `PATH`.
+- [ ] Run `go test ./... -count=1 -timeout=10m`, `go vet ./...`, `go build ./...`, and `git diff --check` after final edits.
+- [ ] Rebuild and restart only the development service on port 4242; verify the home page and critical APIs without touching port 4141.
+- [ ] Report root causes, changed files with line numbers, test evidence, unsupported parameters, and manual verification steps without committing or publishing.
 
 ## Version And Release Gate
 

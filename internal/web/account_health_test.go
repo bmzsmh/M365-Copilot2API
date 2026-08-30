@@ -274,6 +274,41 @@ func TestResolveAccountSkipsSchedulingDisabled(t *testing.T) {
 	}
 }
 
+func TestResolveBoundAccountSkipsUnboundAccounts(t *testing.T) {
+	store := testAccountFiles(t)
+	s := &Server{tokens: store, accountPool: newAccountHealth()}
+
+	acc, err := s.resolveBoundAccount([]string{"u-2", "u-3"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acc.ID != "u-2" && acc.ID != "u-3" {
+		t.Fatalf("selected unbound account %q", acc.ID)
+	}
+}
+
+func TestResolveBoundAccountSkipsDisabledAndUnhealthy(t *testing.T) {
+	store := testAccountFiles(t)
+	if err := store.SetScheduleEnabled("u-2", false); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{tokens: store, accountPool: newAccountHealth()}
+	s.accountPool.MarkFailure("u-3", &UpstreamHTTPError{Status: 429}, 10*time.Minute)
+
+	if _, err := s.resolveBoundAccount([]string{"u-2", "u-3"}, ""); err == nil {
+		t.Fatal("expected failure when every bound account is unavailable")
+	}
+}
+
+func TestResolveBoundAccountRejectsExplicitUnboundAccount(t *testing.T) {
+	store := testAccountFiles(t)
+	s := &Server{tokens: store, accountPool: newAccountHealth()}
+
+	if _, err := s.resolveBoundAccount([]string{"u-2", "u-3"}, "u-1"); err == nil {
+		t.Fatal("expected explicit unbound account to be rejected")
+	}
+}
+
 func TestResolveAccountAllUnhealthy(t *testing.T) {
 	store := testAccountFiles(t)
 	s := &Server{tokens: store, accountPool: newAccountHealth()}
@@ -475,5 +510,58 @@ func TestAccountHealthMeteringDefaultsDeepCopySnapshotAndReset(t *testing.T) {
 	}
 	if meterError, hasAccess, remaining := h.GetMetering(id); meterError != "" || !hasAccess || len(remaining) != 0 {
 		t.Fatalf("reset left metering state: error=%q access=%v remaining=%v", meterError, hasAccess, remaining)
+	}
+}
+
+func TestRemainingAllowanceSnapshotBecomesStaleWithoutBeingDeleted(t *testing.T) {
+	h := newAccountHealth()
+	const id = "acct-snapshot"
+	h.UpdateMetering(id, "", true, map[string]int{"Chat": 17})
+
+	h.UpdateMetering(id, "denied", false, nil)
+	snapshot := h.Snapshot()[id]
+	if snapshot["remainingAllowance"].(map[string]int)["Chat"] != 17 {
+		t.Fatal("denied metering must preserve the last allowance snapshot")
+	}
+	if snapshot["remainingAllowanceStale"] != true {
+		t.Fatal("denied metering must mark the allowance snapshot stale")
+	}
+	if snapshot["remainingAllowanceUpdatedAt"].(time.Time).IsZero() {
+		t.Fatal("allowance snapshot must include its update time")
+	}
+
+	h.UpdateMetering(id, "", true, nil)
+	if h.Snapshot()[id]["remainingAllowanceStale"] != true {
+		t.Fatal("success without fresh allowance data must not revive a stale snapshot")
+	}
+}
+
+func TestRateLimitMarksRemainingAllowanceSnapshotStale(t *testing.T) {
+	h := newAccountHealth()
+	const id = "acct-rate-limited"
+	h.UpdateMetering(id, "", true, map[string]int{"Chat": 9})
+	h.MarkFailure(id, &UpstreamHTTPError{Status: http.StatusTooManyRequests}, time.Minute)
+	if h.Snapshot()[id]["remainingAllowanceStale"] != true {
+		t.Fatal("rate limiting must mark the prior allowance snapshot stale")
+	}
+}
+
+func TestGlobalCooldownMarksRemainingAllowanceSnapshotStale(t *testing.T) {
+	ResetGlobalCircuit()
+	defer ResetGlobalCircuit()
+	globalCircuit.mu.Lock()
+	globalCircuit.openUntil = time.Now().Add(time.Minute)
+	globalCircuit.mu.Unlock()
+
+	h := newAccountHealth()
+	const id = "acct-global-unavailable"
+	h.UpdateMetering(id, "", true, map[string]int{"Chat": 11})
+	h.MarkFailure(id, fmt.Errorf("request rejected while global circuit is open"), time.Minute)
+	snapshot := h.Snapshot()[id]
+	if snapshot["remainingAllowanceStale"] != true {
+		t.Fatal("global cooldown must mark the prior allowance snapshot stale")
+	}
+	if snapshot["available"] != false {
+		t.Fatal("global cooldown account must be unavailable")
 	}
 }

@@ -88,6 +88,17 @@ func (s *Server) logThrottlingWarning(accountID string, throttling any) {
 	}
 }
 
+func shouldRotateConversation(historyLen, maxMessages int) bool {
+	return maxMessages > 0 && historyLen >= maxMessages
+}
+
+func shouldRotateResolvedConversation(historyLen, requestLen, maxMessages int) bool {
+	if requestLen > historyLen {
+		historyLen = requestLen
+	}
+	return shouldRotateConversation(historyLen, maxMessages)
+}
+
 func (s *Server) markAccountResult(accountID string, err error) {
 	if s == nil || s.accountPool == nil || accountID == "" {
 		return
@@ -110,13 +121,18 @@ func (s *Server) recordAccountChatResult(accountID string, result chathub.Result
 	}
 	meterError := ""
 	hasAccess := true
+	hasMetering := false
 	if result.MeteringInformation != nil {
 		if raw, marshalErr := json.Marshal(result.MeteringInformation); marshalErr == nil {
+			hasMetering = true
 			meterError, hasAccess = ParseMetering(accountID, json.RawMessage(raw))
 			applyMeteringCooldown(s.accountPool, accountID, meterError)
 		}
 	}
-	s.accountPool.UpdateMetering(accountID, meterError, hasAccess, remainingAllowances(result.Throttling))
+	remaining := remainingAllowances(result.Throttling)
+	if hasMetering || len(remaining) > 0 {
+		s.accountPool.UpdateMetering(accountID, meterError, hasAccess, remaining)
+	}
 }
 
 // confirmRateLimitNotice verifies a text-channel rate-limit notice with a
@@ -375,12 +391,8 @@ func (s *Server) Routes() http.Handler {
 	m.HandleFunc("/api/admin/deployment/check", s.deploymentCheck)
 	m.HandleFunc("/api/admin/debug/logs", s.debugList)
 	m.HandleFunc("/api/admin/debug/detail", s.debugDetail)
-	m.HandleFunc("/api/admin/graph/config", s.graphConfigCheck)
-	m.HandleFunc("/api/admin/graph/authorization/start", s.graphAuthorizationStart)
-	m.HandleFunc("/api/admin/graph/authorization/callback", s.graphAuthorizationCallback)
-	m.HandleFunc("/api/admin/graph/authorization/status", s.graphAuthorizationStatus)
-	m.HandleFunc("/api/admin/graph/authorization/revoke", s.graphAuthorizationRevoke)
-	m.HandleFunc("/api/admin/graph/users/batch", s.graphBatchUsers)
+	// Microsoft Graph batch user creation is temporarily disabled and will be restored in a later version.
+	// Keep the implementation files intact, but do not register readiness, authorization, or batch routes.
 	m.HandleFunc("/api/health", s.health)
 	m.HandleFunc("/api/version", s.version)
 	m.HandleFunc("/api/update", s.update)
@@ -638,15 +650,16 @@ func (s *Server) adminKeys(w http.ResponseWriter, r *http.Request) {
 		jsonOut(w, map[string]string{"status": "deleted"})
 	case http.MethodPut:
 		var b struct {
-			ID      string `json:"id"`
-			Name    string `json:"name"`
-			Revoked *bool  `json:"revoked"`
+			ID         string   `json:"id"`
+			Name       string   `json:"name"`
+			Revoked    *bool    `json:"revoked"`
+			AccountIDs []string `json:"accountIds"`
 		}
 		if json.NewDecoder(r.Body).Decode(&b) != nil || b.ID == "" {
 			writeOpenAIError(w, 400, "invalid_request_error", "bad json")
 			return
 		}
-		updated, e := s.apiKeys.update(b.ID, b.Name, b.Revoked)
+		updated, e := s.apiKeys.update(b.ID, b.Name, b.Revoked, b.AccountIDs)
 		if e != nil {
 			writeOpenAIError(w, http.StatusInternalServerError, "internal_error", e.Error())
 			return
@@ -1176,6 +1189,39 @@ func (s *Server) resolveAccount(accountID string) (auth.AccountToken, error) {
 		s.mu.Unlock()
 	}
 	return result, err
+}
+
+func (s *Server) resolveBoundAccount(accountIDs []string, accountID string) (auth.AccountToken, error) {
+	allowed := make(map[string]struct{}, len(accountIDs))
+	for _, id := range accountIDs {
+		if id = strings.TrimSpace(id); id != "" {
+			allowed[id] = struct{}{}
+		}
+	}
+	if accountID != "" {
+		if _, ok := allowed[accountID]; !ok {
+			return auth.AccountToken{}, fmt.Errorf("account is not bound to this API key")
+		}
+		return s.resolveAccount(accountID)
+	}
+	for i, count := 0, len(s.tokens.List()); i < count; i++ {
+		acc, ok := s.tokens.Next()
+		if !ok {
+			break
+		}
+		if _, ok := allowed[acc.ID]; !ok || !s.tokens.ScheduleEnabled(acc.ID) || !s.accountAvailable(acc.ID) {
+			continue
+		}
+		result, err := s.tokens.EnsureValid(acc.ID)
+		if err != nil {
+			if s.accountPool != nil {
+				s.accountPool.ReleaseProbe(acc.ID)
+			}
+			continue
+		}
+		return result, nil
+	}
+	return auth.AccountToken{}, fmt.Errorf("no bound account available")
 }
 
 // nextHealthyAccount returns the next round-robin account that is still
@@ -1822,23 +1868,34 @@ func (s *Server) openaiChat(w http.ResponseWriter, r *http.Request) {
 	if body.ConversationID == "" && len(body.Messages) > 0 && (body.Metadata == nil || !body.Metadata.CopilotTempSession) {
 		resolved := s.sessionResolver.Resolve(r, &body)
 		if !resolved.IsNew {
-			resolvedConversationID = resolved.ConversationID
-			body.ConversationID = resolved.ConversationID
-			body.SessionID = resolved.SessionID
-			body.AccountID = firstNonEmpty(body.AccountID, resolved.AccountID)
-			log.Printf("[session-resolver] matched=%s conversation=%s history=%d total=%d", resolved.MatchedBy, resolved.ConversationID, resolved.HistoryLen, len(body.Messages))
-			if resolved.HistoryLen > 0 && resolved.HistoryLen < len(body.Messages) {
-				incPrompt, incAtt := flattenPromptMessages(body.Messages[resolved.HistoryLen:], nil)
-				incPrompt = strings.TrimSpace(incPrompt)
-				if incPrompt != "" {
-					answerPrompt = incPrompt
-					body.Attachments = incAtt
+			if maxMessages := s.settings.get().MaxConversationMessages; shouldRotateResolvedConversation(resolved.HistoryLen, len(body.Messages), maxMessages) {
+				log.Printf("[session-resolver] rotating conversation=%s history=%d limit=%d", resolved.ConversationID, resolved.HistoryLen, maxMessages)
+				s.convCache.Invalidate(resolved.AccountID, firstNonEmpty(body.Model, "m365-copilot"))
+			} else {
+				resolvedConversationID = resolved.ConversationID
+				body.ConversationID = resolved.ConversationID
+				body.SessionID = resolved.SessionID
+				body.AccountID = firstNonEmpty(body.AccountID, resolved.AccountID)
+				log.Printf("[session-resolver] matched=%s conversation=%s history=%d total=%d", resolved.MatchedBy, resolved.ConversationID, resolved.HistoryLen, len(body.Messages))
+				if resolved.HistoryLen > 0 && resolved.HistoryLen < len(body.Messages) {
+					incPrompt, incAtt := flattenPromptMessages(body.Messages[resolved.HistoryLen:], nil)
+					incPrompt = strings.TrimSpace(incPrompt)
+					if incPrompt != "" {
+						answerPrompt = incPrompt
+						body.Attachments = incAtt
+					}
 				}
 			}
 		}
 	}
 	accountID := body.AccountID
-	acc, err := s.resolveAccount(accountID)
+	accountIDs := s.apiKeys.accountIDs(rawAPIKey(r))
+	var acc auth.AccountToken
+	if len(accountIDs) > 0 {
+		acc, err = s.resolveBoundAccount(accountIDs, accountID)
+	} else {
+		acc, err = s.resolveAccount(accountID)
+	}
 	if err != nil {
 		log.Printf("[account-route] resolve failed requested=%q err=%v", accountID, err)
 		writeUpstreamErrorWithAccount(w, err, accountID)
@@ -1864,7 +1921,7 @@ func (s *Server) openaiChat(w http.ResponseWriter, r *http.Request) {
 	if body.ConversationID == "" && len(body.Messages) > 1 &&
 		(body.Metadata == nil || !body.Metadata.CopilotTempSession) {
 		sysHash := systemPromptHash(body.Messages)
-		if cached := s.convCache.Lookup(acc.ID, convCacheModel); cached != nil && cached.SystemPrompt == sysHash {
+		if cached := s.convCache.Lookup(acc.ID, convCacheModel); cached != nil && cached.SystemPrompt == sysHash && !shouldRotateConversation(cached.MessageCount, s.settings.get().MaxConversationMessages) {
 			if len(body.Messages) > cached.MessageCount {
 				incPrompt, incAtt := flattenPromptMessages(body.Messages[cached.MessageCount:], nil)
 				incPrompt = strings.TrimSpace(incPrompt)

@@ -325,7 +325,11 @@ func (s *Server) responses(w http.ResponseWriter, r *http.Request) {
 	}
 	o, err := body.openAI()
 	if err != nil {
-		writeResponsesError(w, 400, "invalid_request_error", err.Error())
+		typ := "invalid_request_error"
+		if strings.HasPrefix(err.Error(), "unsupported_parameter:") {
+			typ = "unsupported_parameter"
+		}
+		writeResponsesError(w, 400, typ, err.Error())
 		return
 	}
 	// Dual isolation: tenant\x00session so two keys never share history and

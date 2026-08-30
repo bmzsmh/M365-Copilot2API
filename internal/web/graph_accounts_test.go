@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"m365-copilot2api/internal/auth"
 )
 
 func validGraphBatchRequest() graphBatchRequest {
@@ -18,7 +20,7 @@ func validGraphBatchRequest() graphBatchRequest {
 		DisplayName:                   "Test User",
 		UsageLocation:                 "US",
 		InitialPassword:               "Initial!Password123",
-		ForceChangePasswordNextSignIn: true,
+		ForceChangePasswordNextSignIn: false,
 	}
 }
 
@@ -67,10 +69,25 @@ func TestGraphBatchUsersRequiresConfiguration(t *testing.T) {
 }
 
 func TestLoadGraphConfigUsesOrganizationsForDelegatedAuthorization(t *testing.T) {
+	t.Setenv("M365_MASTER_KEY", "test-master-key")
+	t.Setenv("M365_DATA_DIR", t.TempDir())
 	t.Setenv("M365_GRAPH_CLIENT_ID", "client")
 	t.Setenv("M365_GRAPH_CLIENT_SECRET", "")
 	t.Setenv("M365_GRAPH_TENANT_ID", "")
 	t.Setenv("M365_GRAPH_TOKEN_URL", "")
+	encrypted, err := auth.EncryptSecret("refresh-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := saveGraphAuthorization(graphAuthorizationData{
+		TenantID:              "tenant",
+		ClientID:              "client",
+		EncryptedRefreshToken: encrypted,
+		Scopes:                graphDelegatedScope,
+		AuthorizedAt:          time.Now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
 	cfg, err := loadGraphConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -135,17 +152,25 @@ func TestGraphBatchUsersContinuesAfterFailure(t *testing.T) {
 	}
 }
 
-func TestGraphEndpointsRequireAdminSession(t *testing.T) {
+func TestGraphEndpointsAreNotRegistered(t *testing.T) {
 	s := &Server{
 		adminPassword: "configured",
-		adminSessions: map[string]time.Time{},
+		adminSessions: map[string]time.Time{"admin-session": time.Now().Add(time.Hour)},
 	}
-	for _, path := range []string{"/api/admin/graph/config", "/api/admin/graph/users/batch"} {
+	for _, path := range []string{
+		"/api/admin/graph/config",
+		"/api/admin/graph/authorization/start",
+		"/api/admin/graph/authorization/status",
+		"/api/admin/graph/authorization/callback",
+		"/api/admin/graph/authorization/revoke",
+		"/api/admin/graph/users/batch",
+	} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, path, nil)
+		request.AddCookie(&http.Cookie{Name: "m365_admin_session", Value: "admin-session"})
 		s.Routes().ServeHTTP(recorder, request)
-		if recorder.Code != http.StatusUnauthorized {
-			t.Fatalf("%s returned %d, want %d", path, recorder.Code, http.StatusUnauthorized)
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("%s returned %d, want %d", path, recorder.Code, http.StatusNotFound)
 		}
 	}
 }

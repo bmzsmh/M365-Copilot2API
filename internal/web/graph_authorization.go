@@ -84,7 +84,7 @@ func (s *Server) graphAuthorizationStart(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if !auth.HasMasterKey() {
-		writeOpenAIError(w, http.StatusServiceUnavailable, "configuration_error", "M365_MASTER_KEY is required before Graph authorization")
+		writeOpenAIError(w, http.StatusServiceUnavailable, "configuration_error", "首次使用前需要初始化安全存储，请先完成安全设置")
 		return
 	}
 	clientID := graphWizardClientID()
@@ -178,16 +178,18 @@ func (s *Server) graphAuthorizationStatus(w http.ResponseWriter, r *http.Request
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "invalid_request_error", "method not allowed")
 		return
 	}
+	readiness := graphReadinessStatus()
 	data, err := loadGraphAuthorization()
 	if err != nil {
 		if os.IsNotExist(err) {
-			jsonOut(w, map[string]any{"authorized": false, "permissionType": "delegated", "applicationFallbackConfigured": strings.TrimSpace(os.Getenv("M365_GRAPH_CLIENT_SECRET")) != ""})
+			jsonOut(w, readiness)
 			return
 		}
 		writeOpenAIError(w, http.StatusInternalServerError, "internal_error", "could not read Graph authorization")
 		return
 	}
-	jsonOut(w, map[string]any{"authorized": true, "tenantId": data.TenantID, "organization": data.Organization, "scopes": data.Scopes, "authorizedAt": data.AuthorizedAt, "lastValidatedAt": data.LastValidatedAt, "permissionType": "delegated", "applicationFallbackConfigured": strings.TrimSpace(os.Getenv("M365_GRAPH_CLIENT_SECRET")) != ""})
+	result := map[string]any{"ready": readiness.Ready, "authorized": readiness.Authorized, "masterKeyConfigured": readiness.MasterKeyConfigured, "clientConfigured": readiness.ClientConfigured, "tenantId": data.TenantID, "organization": data.Organization, "scopes": data.Scopes, "authorizedAt": data.AuthorizedAt, "lastValidatedAt": data.LastValidatedAt, "permissionType": readiness.PermissionType, "applicationFallbackConfigured": readiness.ApplicationFallbackConfigured, "message": readiness.Message, "missingSteps": readiness.MissingSteps}
+	jsonOut(w, result)
 }
 
 func (s *Server) graphAuthorizationRevoke(w http.ResponseWriter, r *http.Request) {
